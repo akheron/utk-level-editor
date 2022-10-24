@@ -1,17 +1,23 @@
-extern crate sdl2;
-
+use crate::context::Context;
 use crate::context::Textures;
+use crate::editor::EditorState;
 use crate::fn2::create_text_texture;
 use crate::fn2::load_font;
 use crate::graphics::Graphics;
 use crate::level::Level;
 use crate::types::NextMode::*;
+use crate::types::*;
+use crate::util::*;
 use sdl2::image::{InitFlag, LoadTexture};
 use sdl2::render::Texture;
+
 mod context;
 mod crates;
 mod editor;
+mod editor_textures;
+mod fn2;
 mod general_level_info;
+mod graphics;
 mod help;
 mod level;
 mod load_level;
@@ -20,12 +26,6 @@ mod render;
 mod tile_selector;
 mod types;
 mod util;
-use context::Context;
-use types::*;
-use util::*;
-mod editor_textures;
-mod fn2;
-mod graphics;
 
 pub fn main() {
     let sdl = sdl2::init().unwrap();
@@ -50,7 +50,7 @@ pub fn main() {
         .flatten()
         .map(|name| create_text_texture(&mut canvas, &texture_creator, &font, name))
         .collect();
-    let mut context = Context {
+    let context = Context {
         sdl,
         graphics,
         canvas,
@@ -76,17 +76,17 @@ pub fn main() {
         automatic_shadows: true,
     };
 
-    let mut next_mode = NextMode::Editor;
+    let mut mode = Editor(EditorState::new(context));
 
-    'running: loop {
-        next_mode = match next_mode {
-            Editor => editor::exec(&mut context),
-            TileSelect => tile_selector::exec(&mut context),
-            Help => help::exec(&mut context),
-            GeneralLevelInfo => general_level_info::exec(&mut context),
-            RandomItemEditor(game_type) => random_item_editor::exec(&mut context, game_type),
-            LoadLevel => load_level::exec(&mut context),
-            Quit => break 'running,
+    loop {
+        mode = match mode {
+            Editor(state) => state.exec(),
+            TileSelect(state) => state.exec(),
+            Help(state) => state.exec(),
+            GeneralLevelInfo(state) => state.exec(),
+            RandomItemEditor(state) => state.exec(),
+            LoadLevel(state) => state.exec(),
+            Quit => break,
         }
     }
 }

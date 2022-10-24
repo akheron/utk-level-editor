@@ -1,3 +1,10 @@
+use crate::editor::EditorState;
+use crate::general_level_info::GeneralLevelInfoState;
+use crate::help::HelpState;
+use crate::load_level::LoadLevelState;
+use crate::random_item_editor::RandomItemEditorState;
+use crate::tile_selector::TileSelectState;
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum TextureType {
     FLOOR = 0,
@@ -30,13 +37,13 @@ pub enum GameType {
     Deathmatch,
 }
 
-pub enum NextMode {
-    Editor,
-    TileSelect,
-    Help,
-    GeneralLevelInfo,
-    RandomItemEditor(GameType),
-    LoadLevel,
+pub enum NextMode<'a> {
+    Editor(EditorState<'a>),
+    TileSelect(TileSelectState<'a>),
+    Help(HelpState<'a>),
+    GeneralLevelInfo(GeneralLevelInfoState<'a>),
+    RandomItemEditor(RandomItemEditorState<'a>),
+    LoadLevel(LoadLevelState<'a>),
     Quit,
 }
 

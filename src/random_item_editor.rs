@@ -1,12 +1,10 @@
-extern crate sdl2;
-
-use crate::create_text_texture;
 use crate::level::Level;
 use crate::render;
 use crate::types::*;
 use crate::util::{get_bottom_text_position, TITLE_POSITION};
 use crate::Context;
 use crate::NextMode::*;
+use crate::{create_text_texture, EditorState};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -55,14 +53,35 @@ fn set_value(level: &mut Level, game_type: &GameType, index: usize, value: u32) 
     }
 }
 
-pub fn exec(context: &mut Context, game_type: GameType) -> NextMode {
-    let normal_game_instruction_text = &load_text(context, "NORMAL GAME CRATES");
-    let deatchmatch_instruction_text = &load_text(context, "DEATHMATCH CRATES");
-    let esc_instruction_text = &load_text(context, "press ESC to exit");
-    let mut selected = 0;
+pub struct RandomItemEditorState<'a> {
+    context: Context<'a>,
+    game_type: GameType,
+    normal_game_instruction_text: Texture<'a>,
+    deathmatch_instruction_text: Texture<'a>,
+    esc_instruction_text: Texture<'a>,
+    selected: usize,
+}
 
-    let mut event_pump = context.sdl.event_pump().unwrap();
-    loop {
+impl RandomItemEditorState<'_> {
+    pub fn new(mut context: Context, game_type: GameType) -> RandomItemEditorState {
+        let normal_game_instruction_text = load_text(&mut context, "NORMAL GAME CRATES");
+        let deathmatch_instruction_text = load_text(&mut context, "DEATHMATCH CRATES");
+        let esc_instruction_text = load_text(&mut context, "press ESC to exit");
+
+        RandomItemEditorState {
+            context,
+            game_type,
+            normal_game_instruction_text,
+            deathmatch_instruction_text,
+            esc_instruction_text,
+            selected: 0,
+        }
+    }
+}
+
+impl<'a> RandomItemEditorState<'a> {
+    pub fn exec(mut self) -> NextMode<'a> {
+        let mut event_pump = self.context.sdl.event_pump().unwrap();
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -70,28 +89,38 @@ pub fn exec(context: &mut Context, game_type: GameType) -> NextMode {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => {
-                    context.sdl.video().unwrap().text_input().stop();
-                    return Editor;
+                    self.context.sdl.video().unwrap().text_input().stop();
+                    return Editor(EditorState::new(self.context));
                 }
                 Event::KeyDown { keycode, .. } => match keycode.unwrap() {
                     Keycode::Down => {
-                        if selected < context.textures.crates.len() - 1 {
-                            selected = selected + 1;
+                        if self.selected < self.context.textures.crates.len() - 1 {
+                            self.selected += 1;
                         }
                     }
                     Keycode::Up => {
-                        if selected > 0 {
-                            selected = selected - 1;
+                        if self.selected > 0 {
+                            self.selected -= 1;
                         }
                     }
                     Keycode::Right => {
-                        let value = get_value(&context.level, &game_type, selected);
-                        set_value(&mut context.level, &game_type, selected, value + 1);
+                        let value = get_value(&self.context.level, &self.game_type, self.selected);
+                        set_value(
+                            &mut self.context.level,
+                            &self.game_type,
+                            self.selected,
+                            value + 1,
+                        );
                     }
                     Keycode::Left => {
-                        let value = get_value(&context.level, &game_type, selected);
+                        let value = get_value(&self.context.level, &self.game_type, self.selected);
                         if value > 0 {
-                            set_value(&mut context.level, &game_type, selected, value - 1);
+                            set_value(
+                                &mut self.context.level,
+                                &self.game_type,
+                                self.selected,
+                                value - 1,
+                            );
                         }
                     }
                     _ => (),
@@ -100,15 +129,15 @@ pub fn exec(context: &mut Context, game_type: GameType) -> NextMode {
             }
         }
 
-        context.canvas.set_draw_color(Color::from((0, 0, 0)));
-        context.canvas.clear();
-        let render_size = context.graphics.get_render_size();
+        self.context.canvas.set_draw_color(Color::from((0, 0, 0)));
+        self.context.canvas.clear();
+        let render_size = self.context.graphics.get_render_size();
 
         render::render_text_texture_coordinates(
-            &mut context.canvas,
-            match game_type {
-                GameType::Normal => &normal_game_instruction_text,
-                GameType::Deathmatch => &deatchmatch_instruction_text,
+            &mut self.context.canvas,
+            match self.game_type {
+                GameType::Normal => &self.normal_game_instruction_text,
+                GameType::Deathmatch => &self.deathmatch_instruction_text,
             },
             TITLE_POSITION,
             render_size,
@@ -118,12 +147,12 @@ pub fn exec(context: &mut Context, game_type: GameType) -> NextMode {
         let y = 50;
         let mut option_position = (40, y);
         let mut value_position = (280, option_position.1);
-        for x in 0..context.textures.crates.len() {
-            let option = &context.textures.crates[x];
-            if selected == x {
+        for x in 0..self.context.textures.crates.len() {
+            let option = &self.context.textures.crates[x];
+            if self.selected == x {
                 render::render_text_texture(
-                    &mut context.canvas,
-                    &context.textures.selected_icon,
+                    &mut self.context.canvas,
+                    &self.context.textures.selected_icon,
                     option_position.0 - 20,
                     option_position.1 + 3,
                     render_size,
@@ -131,7 +160,7 @@ pub fn exec(context: &mut Context, game_type: GameType) -> NextMode {
                 );
             }
             render::render_text_texture(
-                &mut context.canvas,
+                &mut self.context.canvas,
                 &option,
                 option_position.0,
                 option_position.1,
@@ -139,13 +168,13 @@ pub fn exec(context: &mut Context, game_type: GameType) -> NextMode {
                 None,
             );
             let value_texture = create_text_texture(
-                &mut context.canvas,
-                &context.texture_creator,
-                &context.font,
-                &get_value(&context.level, &game_type, x).to_string(),
+                &mut self.context.canvas,
+                &self.context.texture_creator,
+                &self.context.font,
+                &get_value(&self.context.level, &self.game_type, x).to_string(),
             );
             render::render_text_texture(
-                &mut context.canvas,
+                &mut self.context.canvas,
                 &value_texture,
                 value_position.0,
                 value_position.1,
@@ -163,12 +192,13 @@ pub fn exec(context: &mut Context, game_type: GameType) -> NextMode {
             }
         }
         render::render_text_texture_coordinates(
-            &mut context.canvas,
-            esc_instruction_text,
-            get_bottom_text_position(context.graphics.resolution_y),
+            &mut self.context.canvas,
+            &self.esc_instruction_text,
+            get_bottom_text_position(self.context.graphics.resolution_y),
             render_size,
             None,
         );
-        render::render_and_wait(&mut context.canvas);
+        render::render_and_wait(&mut self.context.canvas);
+        RandomItemEditor(self)
     }
 }
