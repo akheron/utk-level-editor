@@ -1,9 +1,8 @@
+use crate::create_text_texture;
 use crate::render;
 use crate::types::*;
 use crate::util::*;
 use crate::Context;
-use crate::NextMode::*;
-use crate::{create_text_texture, EditorState};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
@@ -47,10 +46,10 @@ impl<'a> TileSelectState<'a> {
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => return Editor(EditorState::new(self.context)),
+                } => return NextMode::editor(self.context),
                 Event::KeyDown { keycode, .. } => match keycode.unwrap() {
                     Keycode::Space => {
-                        return Editor(EditorState::new(self.context));
+                        return NextMode::editor(self.context);
                     }
                     Keycode::PageDown => {
                         self.context.texture_type_scrolled =
@@ -105,7 +104,7 @@ impl<'a> TileSelectState<'a> {
                     {
                         self.context.selected_tile_id = clicked_tile_id;
                         self.context.texture_type_selected = self.context.texture_type_scrolled;
-                        return Editor(EditorState::new(self.context));
+                        return NextMode::editor(self.context);
                     }
                 }
                 _ => {}
@@ -179,7 +178,6 @@ impl<'a> TileSelectState<'a> {
             None,
         );
         render::render_and_wait(&mut self.context.canvas);
-
-        TileSelect(self)
+        NextMode::TileSelect(self)
     }
 }

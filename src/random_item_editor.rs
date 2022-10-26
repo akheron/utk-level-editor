@@ -1,10 +1,9 @@
+use crate::create_text_texture;
 use crate::level::Level;
 use crate::render;
 use crate::types::*;
 use crate::util::{get_bottom_text_position, TITLE_POSITION};
 use crate::Context;
-use crate::NextMode::*;
-use crate::{create_text_texture, EditorState};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -90,7 +89,7 @@ impl<'a> RandomItemEditorState<'a> {
                     ..
                 } => {
                     self.context.sdl.video().unwrap().text_input().stop();
-                    return Editor(EditorState::new(self.context));
+                    return NextMode::editor(self.context);
                 }
                 Event::KeyDown { keycode, .. } => match keycode.unwrap() {
                     Keycode::Down => {
@@ -199,6 +198,6 @@ impl<'a> RandomItemEditorState<'a> {
             None,
         );
         render::render_and_wait(&mut self.context.canvas);
-        RandomItemEditor(self)
+        NextMode::RandomItemEditor(self)
     }
 }

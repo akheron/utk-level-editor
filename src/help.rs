@@ -1,8 +1,7 @@
 use crate::fn2::create_text_texture;
+use crate::render;
 use crate::Context;
 use crate::NextMode;
-use crate::NextMode::*;
-use crate::{render, EditorState};
 use sdl2::event::Event;
 use sdl2::pixels::Color;
 use sdl2::render::Texture;
@@ -60,7 +59,7 @@ impl<'a> HelpState<'a> {
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. } | Event::KeyDown { .. } => {
-                    return Editor(EditorState::new(self.context))
+                    return NextMode::editor(self.context)
                 }
                 _ => {}
             }
@@ -80,6 +79,6 @@ impl<'a> HelpState<'a> {
             position += 22;
         }
         render::render_and_wait(&mut self.context.canvas);
-        Help(self)
+        NextMode::Help(self)
     }
 }

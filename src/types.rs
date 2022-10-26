@@ -4,6 +4,7 @@ use crate::help::HelpState;
 use crate::load_level::LoadLevelState;
 use crate::random_item_editor::RandomItemEditorState;
 use crate::tile_selector::TileSelectState;
+use crate::Context;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum TextureType {
@@ -45,6 +46,36 @@ pub enum NextMode<'a> {
     RandomItemEditor(RandomItemEditorState<'a>),
     LoadLevel(LoadLevelState<'a>),
     Quit,
+}
+
+impl NextMode<'_> {
+    pub fn editor(context: Context) -> NextMode {
+        NextMode::Editor(EditorState::new(context))
+    }
+
+    pub fn tile_select(context: Context) -> NextMode {
+        NextMode::TileSelect(TileSelectState::new(context))
+    }
+
+    pub fn help(context: Context) -> NextMode {
+        NextMode::Help(HelpState::new(context))
+    }
+
+    pub fn general_level_info(context: Context) -> NextMode {
+        NextMode::GeneralLevelInfo(GeneralLevelInfoState::new(context))
+    }
+
+    pub fn random_item_editor(context: Context, game_type: GameType) -> NextMode {
+        NextMode::RandomItemEditor(RandomItemEditorState::new(context, game_type))
+    }
+
+    pub fn load_level(context: Context) -> NextMode {
+        NextMode::LoadLevel(LoadLevelState::new(context))
+    }
+
+    pub fn quit<'a>() -> NextMode<'a> {
+        NextMode::Quit
+    }
 }
 
 pub struct Trigonometry {

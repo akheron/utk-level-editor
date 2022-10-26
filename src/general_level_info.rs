@@ -1,9 +1,7 @@
-use crate::fn2::create_text_texture;
 use crate::render;
-use crate::types::*;
 use crate::Context;
-use crate::NextMode::*;
-use crate::{get_bottom_text_position, EditorState};
+use crate::NextMode;
+use crate::{create_text_texture, get_bottom_text_position};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -137,7 +135,7 @@ impl<'a> GeneralLevelInfoState<'a> {
                     ..
                 } => {
                     self.context.sdl.video().unwrap().text_input().stop();
-                    return Editor(EditorState::new(self.context));
+                    return NextMode::editor(self.context);
                 }
                 Event::TextInput { text, .. } => match &self.options[self.selected].value {
                     Value::Comment() => sanitize_level_comment_input(
@@ -247,6 +245,6 @@ impl<'a> GeneralLevelInfoState<'a> {
             None,
         );
         render::render_and_wait(&mut self.context.canvas);
-        GeneralLevelInfo(self)
+        NextMode::GeneralLevelInfo(self)
     }
 }

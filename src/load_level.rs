@@ -1,10 +1,8 @@
-use crate::fn2::create_text_texture;
 use crate::render;
 use crate::types::*;
 use crate::util::TITLE_POSITION;
 use crate::Context;
-use crate::NextMode::*;
-use crate::{get_bottom_text_position, EditorState};
+use crate::{create_text_texture, get_bottom_text_position};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
@@ -77,7 +75,7 @@ impl<'a> LoadLevelState<'a> {
                 | Event::KeyDown {
                     keycode: Some(Keycode::Escape),
                     ..
-                } => return Editor(EditorState::new(self.context)),
+                } => return NextMode::editor(self.context),
                 Event::KeyDown { keycode, .. } => match keycode.unwrap() {
                     Keycode::Down => {
                         if self.selected < self.files.len() - 1 {
@@ -109,7 +107,7 @@ impl<'a> LoadLevelState<'a> {
                             self.context.level_save_name =
                                 level_name.strip_suffix(".LEV").unwrap().to_string();
                         }
-                        return Editor(EditorState::new(self.context));
+                        return NextMode::editor(self.context);
                     }
                     _ => {}
                 },
@@ -157,6 +155,6 @@ impl<'a> LoadLevelState<'a> {
             None,
         );
         render::render_and_wait(&mut self.context.canvas);
-        LoadLevel(self)
+        NextMode::LoadLevel(self)
     }
 }

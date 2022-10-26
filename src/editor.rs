@@ -1,22 +1,16 @@
 use crate::crates::{get_crates, CrateClass, Crates};
 use crate::create_text_texture;
 use crate::editor_textures::EditorTextures;
-use crate::general_level_info::GeneralLevelInfoState;
-use crate::help::HelpState;
 use crate::level::StaticCrate;
 use crate::level::StaticCrateType;
 use crate::level::Steam;
-use crate::load_level::LoadLevelState;
-use crate::random_item_editor::RandomItemEditorState;
 use crate::render;
-use crate::tile_selector::TileSelectState;
 use crate::types::GameType;
 use crate::util::*;
 use crate::Context;
 use crate::Graphics;
 use crate::Level;
 use crate::NextMode;
-use crate::NextMode::*;
 use crate::TextureType;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -81,6 +75,7 @@ pub struct EditorState<'a> {
     drag_tiles: bool,
     crates: Crates<'a>,
 }
+
 impl EditorState<'_> {
     pub fn new(mut context: Context) -> EditorState {
         let textures = EditorTextures::new(&mut context);
@@ -142,11 +137,9 @@ impl<'a> EditorState<'a> {
                 Event::KeyDown { keycode, .. } => {
                     if let Some(key) = keycode {
                         match key {
-                            Keycode::Space => {
-                                return TileSelect(TileSelectState::new(self.context));
-                            }
+                            Keycode::Space => return NextMode::tile_select(self.context),
                             Keycode::F1 => {
-                                return Help(HelpState::new(self.context));
+                                return NextMode::help(self.context);
                             }
                             Keycode::F2 => {
                                 self.context.sdl.video().unwrap().text_input().stop();
@@ -154,7 +147,7 @@ impl<'a> EditorState<'a> {
                             }
                             Keycode::F3 => {
                                 self.context.sdl.video().unwrap().text_input().stop();
-                                return LoadLevel(LoadLevelState::new(self.context));
+                                return NextMode::load_level(self.context);
                             }
                             Keycode::F4 => {
                                 self.prompt = PromptType::NewLevel(NewLevelState::Prompt);
@@ -171,19 +164,19 @@ impl<'a> EditorState<'a> {
                                     });
                             }
                             Keycode::F7 => {
-                                return GeneralLevelInfo(GeneralLevelInfoState::new(self.context));
+                                return NextMode::general_level_info(self.context);
                             }
                             Keycode::F8 => {
-                                return RandomItemEditor(RandomItemEditorState::new(
+                                return NextMode::random_item_editor(
                                     self.context,
                                     GameType::Normal,
-                                ));
+                                );
                             }
                             Keycode::F9 => {
-                                return RandomItemEditor(RandomItemEditorState::new(
+                                return NextMode::random_item_editor(
                                     self.context,
                                     GameType::Deathmatch,
-                                ));
+                                );
                             }
                             Keycode::Num1 | Keycode::Num2 => {
                                 if !matches!(self.prompt, PromptType::NewLevel(_))
@@ -253,7 +246,7 @@ impl<'a> EditorState<'a> {
                                     };
                                     self.prompt = PromptType::None;
                                 }
-                                PromptType::Quit => return Quit,
+                                PromptType::Quit => return NextMode::quit(),
                                 PromptType::None => {
                                     self.prompt = PromptType::None;
                                 }
@@ -781,7 +774,7 @@ impl<'a> EditorState<'a> {
             );
         }
         render::render_and_wait(&mut self.context.canvas);
-        Editor(self)
+        NextMode::Editor(self)
     }
 }
 
