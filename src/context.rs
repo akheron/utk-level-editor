@@ -9,21 +9,19 @@ use sdl2::render::TextureCreator;
 use sdl2::video::Window;
 use sdl2::video::WindowContext;
 use sdl2::Sdl;
+use std::cell::RefCell;
 
 pub struct Textures<'a> {
     pub floor: Texture<'a>,
     pub walls: Texture<'a>,
     pub shadows: Texture<'a>,
     pub selected_icon: Texture<'a>,
-    pub saved_level_name: Option<Texture<'a>>,
     pub crates: Vec<Texture<'a>>,
 }
 
 pub struct Context<'a> {
     pub sdl: Sdl,
     pub graphics: Graphics,
-    pub canvas: Canvas<Window>,
-    pub texture_creator: &'a TextureCreator<WindowContext>,
     pub font: FN2,
     pub textures: Textures<'a>,
     pub level: Level,

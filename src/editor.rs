@@ -1,5 +1,4 @@
 use crate::crates::{get_crates, CrateClass, Crates};
-use crate::create_text_texture;
 use crate::editor_textures::EditorTextures;
 use crate::level::StaticCrate;
 use crate::level::StaticCrateType;
@@ -12,6 +11,7 @@ use crate::Graphics;
 use crate::Level;
 use crate::NextMode;
 use crate::TextureType;
+use crate::{create_text_texture, VideoContext};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
@@ -63,7 +63,6 @@ enum InsertType {
 }
 
 pub struct EditorState<'a> {
-    context: Context<'a>,
     textures: EditorTextures<'a>,
     set_position: u8,
     mouse_left_click: Option<(u32, u32)>,
@@ -74,13 +73,13 @@ pub struct EditorState<'a> {
     new_level_size_y: String,
     drag_tiles: bool,
     crates: Crates<'a>,
+    saved_level_name: Option<Texture<'a>>,
 }
 
-impl EditorState<'_> {
-    pub fn new(mut context: Context) -> EditorState {
-        let textures = EditorTextures::new(&mut context);
+impl<'a> EditorState<'a> {
+    pub fn new(video: &'a mut VideoContext, context: &Context) -> Self {
+        let textures = EditorTextures::new(video, context);
         EditorState {
-            context,
             textures,
             set_position: 0,
             mouse_left_click: None,
@@ -91,12 +90,12 @@ impl EditorState<'_> {
             new_level_size_y: String::new(),
             drag_tiles: false,
             crates: get_crates(),
+            saved_level_name: None,
         }
     }
-}
-impl<'a> EditorState<'a> {
-    pub fn exec(mut self) -> NextMode<'a> {
-        let mut event_pump = self.context.sdl.event_pump().unwrap();
+
+    pub fn exec(&mut self, video: &'a mut VideoContext, context: &mut Context) -> NextMode {
+        let mut event_pump = context.sdl.event_pump().unwrap();
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -109,7 +108,7 @@ impl<'a> EditorState<'a> {
                         || self.set_position > 0
                     {
                         self.insert_item = InsertType::None;
-                        self.context.sdl.video().unwrap().text_input().stop();
+                        context.sdl.video().unwrap().text_input().stop();
                         self.set_position = 0;
                         PromptType::None
                     } else {
@@ -128,7 +127,7 @@ impl<'a> EditorState<'a> {
                     },
                     PromptType::Save(save_level_state) => match save_level_state {
                         SaveLevelType::NameInput => {
-                            sanitize_level_name_input(&text, &mut self.context.level_save_name)
+                            sanitize_level_name_input(&text, &mut context.level_save_name)
                         }
                         _ => {}
                     },
@@ -137,17 +136,17 @@ impl<'a> EditorState<'a> {
                 Event::KeyDown { keycode, .. } => {
                     if let Some(key) = keycode {
                         match key {
-                            Keycode::Space => return NextMode::tile_select(self.context),
+                            Keycode::Space => return NextMode::TileSelect,
                             Keycode::F1 => {
-                                return NextMode::help(self.context);
+                                return NextMode::Help;
                             }
                             Keycode::F2 => {
-                                self.context.sdl.video().unwrap().text_input().stop();
+                                context.sdl.video().unwrap().text_input().stop();
                                 self.prompt = PromptType::Save(SaveLevelType::Prompt);
                             }
                             Keycode::F3 => {
-                                self.context.sdl.video().unwrap().text_input().stop();
-                                return NextMode::load_level(self.context);
+                                context.sdl.video().unwrap().text_input().stop();
+                                return NextMode::LoadLevel;
                             }
                             Keycode::F4 => {
                                 self.prompt = PromptType::NewLevel(NewLevelState::Prompt);
@@ -155,29 +154,21 @@ impl<'a> EditorState<'a> {
                                 self.new_level_size_y.clear();
                             }
                             Keycode::F6 => {
-                                self.context.sdl.video().unwrap().text_input().stop();
+                                context.sdl.video().unwrap().text_input().stop();
                                 self.prompt =
-                                    PromptType::CreateShadows(if self.context.automatic_shadows {
+                                    PromptType::CreateShadows(if context.automatic_shadows {
                                         ShadowPromptType::Enabled
                                     } else {
                                         ShadowPromptType::Disabled
                                     });
                             }
                             Keycode::F7 => {
-                                return NextMode::general_level_info(self.context);
+                                return NextMode::GeneralLevelInfo;
                             }
                             Keycode::F8 => {
-                                return NextMode::random_item_editor(
-                                    self.context,
-                                    GameType::Normal,
-                                );
+                                return NextMode::RandomItemEditor(GameType::Normal);
                             }
-                            Keycode::F9 => {
-                                return NextMode::random_item_editor(
-                                    self.context,
-                                    GameType::Deathmatch,
-                                );
-                            }
+                            Keycode::F9 => return NextMode::RandomItemEditor(GameType::Deathmatch),
                             Keycode::Num1 | Keycode::Num2 => {
                                 if !matches!(self.prompt, PromptType::NewLevel(_))
                                     && !matches!(self.prompt, PromptType::Save(_))
@@ -193,7 +184,7 @@ impl<'a> EditorState<'a> {
                                     } else {
                                         InsertType::Spotlight(InsertState::Delete)
                                     };
-                                    self.context.sdl.video().unwrap().text_input().stop();
+                                    context.sdl.video().unwrap().text_input().stop();
                                     self.prompt = PromptType::None;
                                 }
                             }
@@ -204,7 +195,7 @@ impl<'a> EditorState<'a> {
                                     } else {
                                         InsertType::Steam(InsertState::Delete)
                                     };
-                                    self.context.sdl.video().unwrap().text_input().stop();
+                                    context.sdl.video().unwrap().text_input().stop();
                                     self.prompt = PromptType::None;
                                 }
                             }
@@ -217,7 +208,7 @@ impl<'a> EditorState<'a> {
                                     } else {
                                         InsertType::NormalCrate(InsertState::Delete)
                                     };
-                                    self.context.sdl.video().unwrap().text_input().stop();
+                                    context.sdl.video().unwrap().text_input().stop();
                                     self.prompt = PromptType::None;
                                 }
                             }
@@ -225,28 +216,28 @@ impl<'a> EditorState<'a> {
                                 PromptType::NewLevel(new_level_state) => match new_level_state {
                                     NewLevelState::Prompt => {
                                         self.prompt = PromptType::NewLevel(NewLevelState::XSize);
-                                        self.context.sdl.video().unwrap().text_input().start();
+                                        context.sdl.video().unwrap().text_input().start();
                                     }
                                     _ => {}
                                 },
                                 PromptType::Save(save_level_state) => match save_level_state {
                                     SaveLevelType::Prompt => {
                                         self.prompt = PromptType::Save(SaveLevelType::NameInput);
-                                        self.context.sdl.video().unwrap().text_input().start();
+                                        context.sdl.video().unwrap().text_input().start();
                                     }
                                     _ => {}
                                 },
                                 PromptType::CreateShadows(shadow_state) => {
-                                    self.context.automatic_shadows = match shadow_state {
+                                    context.automatic_shadows = match shadow_state {
                                         ShadowPromptType::Enabled => false,
                                         ShadowPromptType::Disabled => {
-                                            self.context.level.create_shadows();
+                                            context.level.create_shadows();
                                             true
                                         }
                                     };
                                     self.prompt = PromptType::None;
                                 }
-                                PromptType::Quit => return NextMode::quit(),
+                                PromptType::Quit => return NextMode::Quit,
                                 PromptType::None => {
                                     self.prompt = PromptType::None;
                                 }
@@ -254,11 +245,9 @@ impl<'a> EditorState<'a> {
                             Keycode::Up => match &self.insert_item {
                                 InsertType::Spotlight(state) => match state {
                                     InsertState::Instructions(coordinates) => {
-                                        let spotlight_intensity = self
-                                            .context
-                                            .level
-                                            .get_spotlight_from_level(&coordinates);
-                                        self.context.level.put_spotlight_to_level(
+                                        let spotlight_intensity =
+                                            context.level.get_spotlight_from_level(&coordinates);
+                                        context.level.put_spotlight_to_level(
                                             &coordinates,
                                             spotlight_intensity + 1,
                                         )
@@ -268,9 +257,9 @@ impl<'a> EditorState<'a> {
                                 InsertType::Steam(state) => match state {
                                     InsertState::Instructions(coordinates) => {
                                         let steam =
-                                            self.context.level.get_steam_from_level(&coordinates);
+                                            context.level.get_steam_from_level(&coordinates);
                                         if steam.range < 6 {
-                                            self.context.level.put_steam_to_level(
+                                            context.level.put_steam_to_level(
                                                 &coordinates,
                                                 &Steam {
                                                     angle: steam.angle,
@@ -284,8 +273,7 @@ impl<'a> EditorState<'a> {
                                 InsertType::NormalCrate(state) | InsertType::DMCrate(state) => {
                                     match state {
                                         InsertState::Instructions(coordinates) => {
-                                            let mut crate_item = self
-                                                .context
+                                            let mut crate_item = context
                                                 .level
                                                 .get_crate_from_level(&coordinates)
                                                 .clone();
@@ -296,7 +284,7 @@ impl<'a> EditorState<'a> {
                                                 crate_item.crate_class = CrateClass::from_u32(
                                                     crate_item.crate_class as u32 + 1,
                                                 );
-                                                self.context
+                                                context
                                                     .level
                                                     .put_crate_to_level(&coordinates, &crate_item)
                                             }
@@ -305,20 +293,18 @@ impl<'a> EditorState<'a> {
                                     }
                                 }
                                 _ => {
-                                    if self.context.level.scroll.1 > 0 {
-                                        self.context.level.scroll.1 -= 1
+                                    if context.level.scroll.1 > 0 {
+                                        context.level.scroll.1 -= 1
                                     }
                                 }
                             },
                             Keycode::Down => match &self.insert_item {
                                 InsertType::Spotlight(state) => match state {
                                     InsertState::Instructions(coordinates) => {
-                                        let spotlight_intensity = self
-                                            .context
-                                            .level
-                                            .get_spotlight_from_level(&coordinates);
+                                        let spotlight_intensity =
+                                            context.level.get_spotlight_from_level(&coordinates);
                                         if spotlight_intensity > 0 {
-                                            self.context.level.put_spotlight_to_level(
+                                            context.level.put_spotlight_to_level(
                                                 &coordinates,
                                                 spotlight_intensity - 1,
                                             )
@@ -329,9 +315,9 @@ impl<'a> EditorState<'a> {
                                 InsertType::Steam(state) => match state {
                                     InsertState::Instructions(coordinates) => {
                                         let steam =
-                                            self.context.level.get_steam_from_level(&coordinates);
+                                            context.level.get_steam_from_level(&coordinates);
                                         if steam.range > 0 {
-                                            self.context.level.put_steam_to_level(
+                                            context.level.put_steam_to_level(
                                                 &coordinates,
                                                 &Steam {
                                                     angle: steam.angle,
@@ -345,8 +331,7 @@ impl<'a> EditorState<'a> {
                                 InsertType::NormalCrate(state) | InsertType::DMCrate(state) => {
                                     match state {
                                         InsertState::Instructions(coordinates) => {
-                                            let mut crate_item = self
-                                                .context
+                                            let mut crate_item = context
                                                 .level
                                                 .get_crate_from_level(&coordinates)
                                                 .clone();
@@ -355,7 +340,7 @@ impl<'a> EditorState<'a> {
                                                 crate_item.crate_class = CrateClass::from_u32(
                                                     crate_item.crate_class as u32 - 1,
                                                 );
-                                                self.context
+                                                context
                                                     .level
                                                     .put_crate_to_level(&coordinates, &crate_item)
                                             }
@@ -364,11 +349,11 @@ impl<'a> EditorState<'a> {
                                     }
                                 }
                                 _ => {
-                                    if self.context.level.scroll.1
-                                        + self.context.graphics.get_y_tiles_per_screen()
-                                        < (self.context.level.tiles.len()) as u32
+                                    if context.level.scroll.1
+                                        + context.graphics.get_y_tiles_per_screen()
+                                        < (context.level.tiles.len()) as u32
                                     {
-                                        self.context.level.scroll.1 += 1;
+                                        context.level.scroll.1 += 1;
                                     }
                                 }
                             },
@@ -376,8 +361,8 @@ impl<'a> EditorState<'a> {
                                 InsertType::Steam(state) => match state {
                                     InsertState::Instructions(coordinates) => {
                                         let steam =
-                                            self.context.level.get_steam_from_level(&coordinates);
-                                        self.context.level.put_steam_to_level(
+                                            context.level.get_steam_from_level(&coordinates);
+                                        context.level.put_steam_to_level(
                                             &coordinates,
                                             &Steam {
                                                 angle: (steam.angle + 360 - 5) % 360,
@@ -390,14 +375,13 @@ impl<'a> EditorState<'a> {
                                 InsertType::NormalCrate(state) | InsertType::DMCrate(state) => {
                                     match state {
                                         InsertState::Instructions(coordinates) => {
-                                            let mut crate_item = self
-                                                .context
+                                            let mut crate_item = context
                                                 .level
                                                 .get_crate_from_level(&coordinates)
                                                 .clone();
                                             if crate_item.crate_type > 0 {
                                                 crate_item.crate_type = crate_item.crate_type - 1;
-                                                self.context
+                                                context
                                                     .level
                                                     .put_crate_to_level(coordinates, &crate_item);
                                             }
@@ -406,8 +390,8 @@ impl<'a> EditorState<'a> {
                                     }
                                 }
                                 _ => {
-                                    if self.context.level.scroll.0 > 0 {
-                                        self.context.level.scroll.0 -= 1;
+                                    if context.level.scroll.0 > 0 {
+                                        context.level.scroll.0 -= 1;
                                     }
                                 }
                             },
@@ -415,8 +399,8 @@ impl<'a> EditorState<'a> {
                                 InsertType::Steam(state) => match state {
                                     InsertState::Instructions(coordinates) => {
                                         let steam =
-                                            self.context.level.get_steam_from_level(&coordinates);
-                                        self.context.level.put_steam_to_level(
+                                            context.level.get_steam_from_level(&coordinates);
+                                        context.level.put_steam_to_level(
                                             &coordinates,
                                             &Steam {
                                                 angle: (steam.angle + 5) % 360,
@@ -429,8 +413,7 @@ impl<'a> EditorState<'a> {
                                 InsertType::NormalCrate(state) | InsertType::DMCrate(state) => {
                                     match state {
                                         InsertState::Instructions(coordinates) => {
-                                            let mut crate_item = self
-                                                .context
+                                            let mut crate_item = context
                                                 .level
                                                 .get_crate_from_level(&coordinates)
                                                 .clone();
@@ -441,7 +424,7 @@ impl<'a> EditorState<'a> {
                                                     as u8
                                             {
                                                 crate_item.crate_type = crate_item.crate_type + 1;
-                                                self.context
+                                                context
                                                     .level
                                                     .put_crate_to_level(coordinates, &crate_item);
                                             }
@@ -450,11 +433,11 @@ impl<'a> EditorState<'a> {
                                     }
                                 }
                                 _ => {
-                                    if self.context.level.scroll.0
-                                        + self.context.graphics.get_x_tiles_per_screen()
-                                        < (self.context.level.tiles[0].len()) as u32
+                                    if context.level.scroll.0
+                                        + context.graphics.get_x_tiles_per_screen()
+                                        < (context.level.tiles[0].len()) as u32
                                     {
-                                        self.context.level.scroll.0 += 1;
+                                        context.level.scroll.0 += 1;
                                     }
                                 }
                             },
@@ -491,30 +474,29 @@ impl<'a> EditorState<'a> {
                                     && self.new_level_size_x.len() > 1
                                     && self.new_level_size_y.parse::<u8>().unwrap() >= 12
                                 {
-                                    self.context.level = Level::get_default_level((
+                                    context.level = Level::get_default_level((
                                         self.new_level_size_x.parse::<u8>().unwrap(),
                                         self.new_level_size_y.parse::<u8>().unwrap(),
                                     ));
-                                    self.context.sdl.video().unwrap().text_input().stop();
-                                    self.context.textures.saved_level_name = None;
-                                    self.context.level_save_name.clear();
+                                    context.sdl.video().unwrap().text_input().stop();
+                                    self.saved_level_name = None;
+                                    context.level_save_name.clear();
                                     self.prompt = PromptType::None;
                                 } else if self.prompt == PromptType::Save(SaveLevelType::NameInput)
-                                    && self.context.level_save_name.len() > 1
+                                    && context.level_save_name.len() > 1
                                 {
                                     let level_save_name_uppercase =
-                                        self.context.level_save_name.to_uppercase();
+                                        context.level_save_name.to_uppercase();
                                     let level_saved_name =
                                         format!("{}.LEV", &level_save_name_uppercase);
-                                    self.context.level.serialize(&level_saved_name).unwrap();
-                                    self.context.sdl.video().unwrap().text_input().stop();
-                                    self.context.textures.saved_level_name =
-                                        Some(create_text_texture(
-                                            &mut self.context.canvas,
-                                            &self.context.texture_creator,
-                                            &self.context.font,
-                                            &level_saved_name.clone().to_lowercase(),
-                                        ));
+                                    context.level.serialize(&level_saved_name).unwrap();
+                                    context.sdl.video().unwrap().text_input().stop();
+                                    self.saved_level_name = Some(create_text_texture(
+                                        &mut video.canvas,
+                                        &video.texture_creator,
+                                        &context.font,
+                                        &level_saved_name.clone().to_lowercase(),
+                                    ));
                                     self.prompt = PromptType::None;
                                 }
                             }
@@ -530,21 +512,21 @@ impl<'a> EditorState<'a> {
                                 },
                                 PromptType::Save(save_level_state) => match save_level_state {
                                     SaveLevelType::NameInput => {
-                                        self.context.level_save_name.pop();
+                                        context.level_save_name.pop();
                                     }
                                     _ => {}
                                 },
                                 _ => (),
                             },
                             Keycode::Plus | Keycode::KpPlus => {
-                                if self.context.graphics.render_multiplier == 1 {
-                                    self.context.graphics.render_multiplier = 2;
+                                if context.graphics.render_multiplier == 1 {
+                                    context.graphics.render_multiplier = 2;
                                 }
                             }
                             Keycode::Minus | Keycode::KpMinus => {
-                                if self.context.graphics.render_multiplier == 2 {
-                                    self.context.graphics.render_multiplier = 1;
-                                    self.context.level.scroll = (0, 0);
+                                if context.graphics.render_multiplier == 2 {
+                                    context.graphics.render_multiplier = 1;
+                                    context.level.scroll = (0, 0);
                                 }
                             }
                             _ => {
@@ -560,18 +542,18 @@ impl<'a> EditorState<'a> {
                 }
                 Event::MouseMotion { x, y, .. } => {
                     if x >= 0 && y >= 0 {
-                        self.context.mouse.0 = x as u32;
-                        self.context.mouse.1 = y as u32;
+                        context.mouse.0 = x as u32;
+                        context.mouse.1 = y as u32;
                         if self.mouse_left_click.is_some() {
                             handle_mouse_left_down(
-                                &mut self.context,
+                                context,
                                 &mut self.set_position,
                                 &mut self.insert_item,
                                 &mut self.drag_tiles,
                             );
                         }
                         if self.mouse_right_click {
-                            handle_mouse_right_down(&mut self.context);
+                            handle_mouse_right_down(context);
                         }
                     }
                 }
@@ -579,9 +561,9 @@ impl<'a> EditorState<'a> {
                     mouse_btn: MouseButton::Left,
                     ..
                 } => {
-                    self.mouse_left_click = Some(self.context.mouse.clone());
+                    self.mouse_left_click = Some(context.mouse.clone());
                     handle_mouse_left_down(
-                        &mut self.context,
+                        context,
                         &mut self.set_position,
                         &mut self.insert_item,
                         &mut self.drag_tiles,
@@ -595,28 +577,28 @@ impl<'a> EditorState<'a> {
                         self.drag_tiles = false;
                         if let Some(coordinates) = self.mouse_left_click {
                             let selected_level_tiles = get_selected_level_tiles(
-                                &self.context.graphics,
+                                &context.graphics,
                                 &coordinates,
                                 &get_limited_screen_level_size(
-                                    &self.context.graphics,
-                                    &self.context.mouse,
-                                    &self.context.level,
-                                    self.context.graphics.get_render_size(),
+                                    &context.graphics,
+                                    &context.mouse,
+                                    &context.level,
+                                    context.graphics.get_render_size(),
                                 ),
-                                self.context.level.tiles[0].len() as u32,
-                                Some(self.context.level.scroll.clone()),
+                                context.level.tiles[0].len() as u32,
+                                Some(context.level.scroll.clone()),
                             );
                             for level_tile_id in selected_level_tiles {
-                                self.context.level.put_tile_to_level(
+                                context.level.put_tile_to_level(
                                     level_tile_id,
-                                    Some(self.context.selected_tile_id.clone()),
-                                    &self.context.texture_type_selected,
+                                    Some(context.selected_tile_id.clone()),
+                                    &context.texture_type_selected,
                                 );
                             }
-                            if self.context.texture_type_selected == TextureType::SHADOW {
-                                self.context.automatic_shadows = false;
-                            } else if self.context.automatic_shadows {
-                                self.context.level.create_shadows();
+                            if context.texture_type_selected == TextureType::SHADOW {
+                                context.automatic_shadows = false;
+                            } else if context.automatic_shadows {
+                                context.level.create_shadows();
                             }
                         }
                     };
@@ -627,7 +609,7 @@ impl<'a> EditorState<'a> {
                     ..
                 } => {
                     self.mouse_right_click = true;
-                    handle_mouse_right_down(&mut self.context);
+                    handle_mouse_right_down(context);
                 }
                 Event::MouseButtonUp {
                     mouse_btn: MouseButton::Right,
@@ -639,45 +621,45 @@ impl<'a> EditorState<'a> {
             }
         }
         render::render_level(
-            &mut self.context.canvas,
-            &self.context.graphics,
-            &self.context.level,
-            &self.context.textures,
-            &self.context.trigonometry,
+            &mut video.canvas,
+            &context.graphics,
+            &context.level,
+            &context.textures,
+            &context.trigonometry,
         );
         let highlighted_id = get_tile_id_from_coordinates(
-            &self.context.graphics,
+            &context.graphics,
             &get_limited_screen_level_size(
-                &self.context.graphics,
-                &self.context.mouse,
-                &self.context.level,
-                self.context.graphics.get_render_size(),
+                &context.graphics,
+                &context.mouse,
+                &context.level,
+                context.graphics.get_render_size(),
             ),
-            self.context.graphics.get_x_tiles_per_screen(),
+            context.graphics.get_x_tiles_per_screen(),
             None,
         );
         render::highlight_selected_tile(
-            &mut self.context.canvas,
-            &self.context.graphics,
+            &mut video.canvas,
+            &context.graphics,
             highlighted_id,
             &render::RendererColor::White,
         );
-        let render_size = self.context.graphics.get_render_size();
+        let render_size = context.graphics.get_render_size();
         render::render_text_texture(
-            &mut self.context.canvas,
+            &mut video.canvas,
             &self.textures.p1_text_texture,
-            self.context.level.p1_position.0 * render_size,
-            self.context.level.p1_position.1 * render_size,
+            context.level.p1_position.0 * render_size,
+            context.level.p1_position.1 * render_size,
             render_size,
-            Some(self.context.level.scroll),
+            Some(context.level.scroll),
         );
         render::render_text_texture(
-            &mut self.context.canvas,
+            &mut video.canvas,
             &self.textures.p2_text_texture,
-            self.context.level.p2_position.0 * render_size,
-            self.context.level.p2_position.1 * render_size,
+            context.level.p2_position.0 * render_size,
+            context.level.p2_position.1 * render_size,
             render_size,
-            Some(self.context.level.scroll),
+            Some(context.level.scroll),
         );
         let text_position = (8, 8);
         let text_texture = if self.set_position == 1 {
@@ -727,14 +709,15 @@ impl<'a> EditorState<'a> {
             &self.textures.help_text_texture
         };
         render::render_text_texture_coordinates(
-            &mut self.context.canvas,
+            &mut video.canvas,
             text_texture,
             text_position,
             render_size,
             None,
         );
         render_prompt_if_needed(
-            &mut self.context,
+            video,
+            context,
             &self.textures,
             &self.prompt,
             &self.new_level_size_x,
@@ -743,38 +726,38 @@ impl<'a> EditorState<'a> {
         if self.insert_item == InsertType::None {
             if let Some(coordinates) = self.mouse_left_click {
                 let selected_screen_tiles = get_selected_level_tiles(
-                    &self.context.graphics,
+                    &context.graphics,
                     &coordinates,
                     &get_limited_screen_level_size(
-                        &self.context.graphics,
-                        &self.context.mouse,
-                        &self.context.level,
-                        self.context.graphics.get_render_size(),
+                        &context.graphics,
+                        &context.mouse,
+                        &context.level,
+                        context.graphics.get_render_size(),
                     ),
-                    self.context.graphics.get_x_tiles_per_screen(),
+                    context.graphics.get_x_tiles_per_screen(),
                     None,
                 );
                 for screen_tile_id in selected_screen_tiles {
                     render::highlight_selected_tile(
-                        &mut self.context.canvas,
-                        &self.context.graphics,
+                        &mut video.canvas,
+                        &context.graphics,
                         screen_tile_id,
                         &render::RendererColor::White,
                     );
                 }
             }
         }
-        if let Some(texture) = &self.context.textures.saved_level_name {
+        if let Some(texture) = &self.saved_level_name {
             render::render_text_texture_coordinates(
-                &mut self.context.canvas,
+                &mut video.canvas,
                 &texture,
-                get_bottom_text_position(self.context.graphics.resolution_y),
+                get_bottom_text_position(context.graphics.resolution_y),
                 render_size,
                 None,
             );
         }
-        render::render_and_wait(&mut self.context.canvas);
-        NextMode::Editor(self)
+        render::render_and_wait(&mut video.canvas);
+        NextMode::Editor
     }
 }
 
@@ -791,7 +774,8 @@ fn sanitize_level_name_input(new_text: &str, target_text: &mut String) {
 }
 
 fn render_input_prompt(
-    context: &mut Context,
+    video: &mut VideoContext,
+    context: &Context,
     prompt_position: (u32, u32),
     prompt_line_spacing: u32,
     instruction_texture: &Texture,
@@ -799,7 +783,7 @@ fn render_input_prompt(
 ) {
     let render_size = context.graphics.get_render_size();
     render::render_text_texture(
-        &mut context.canvas,
+        &mut video.canvas,
         instruction_texture,
         prompt_position.0,
         prompt_position.1 + 2 * prompt_line_spacing,
@@ -809,14 +793,14 @@ fn render_input_prompt(
 
     if !input_field.is_empty() {
         let input_text_texture = create_text_texture(
-            &mut context.canvas,
-            &context.texture_creator,
+            &mut video.canvas,
+            &video.texture_creator,
             &context.font,
             &input_field,
         );
         let TextureQuery { width, .. } = instruction_texture.query();
         render::render_text_texture(
-            &mut context.canvas,
+            &mut video.canvas,
             &input_text_texture,
             prompt_position.0 + width * render::TEXT_SIZE_MULTIPLIER + 10,
             prompt_position.1 + 2 * prompt_line_spacing,
@@ -827,7 +811,8 @@ fn render_input_prompt(
 }
 
 fn render_prompt_if_needed(
-    context: &mut Context,
+    video: &mut VideoContext,
+    context: &Context,
     textures: &EditorTextures,
     prompt: &PromptType,
     new_level_size_x: &str,
@@ -845,6 +830,7 @@ fn render_prompt_if_needed(
                             || *input_state == NewLevelState::YSize
                         {
                             render_input_prompt(
+                                video,
                                 context,
                                 prompt_position,
                                 prompt_line_spacing,
@@ -854,6 +840,7 @@ fn render_prompt_if_needed(
                         }
                         if *input_state == NewLevelState::YSize {
                             render_input_prompt(
+                                video,
                                 context,
                                 (prompt_position.0, prompt_position.1 + prompt_line_spacing),
                                 prompt_line_spacing,
@@ -871,6 +858,7 @@ fn render_prompt_if_needed(
                     SaveLevelType::NameInput => {
                         let level_save_name = context.level_save_name.clone();
                         render_input_prompt(
+                            video,
                             context,
                             prompt_position,
                             prompt_line_spacing,
@@ -894,7 +882,7 @@ fn render_prompt_if_needed(
         };
         let render_size = context.graphics.get_render_size();
         render::render_text_texture(
-            &mut context.canvas,
+            &mut video.canvas,
             prompt_texture,
             prompt_position.0,
             prompt_position.1,
@@ -902,7 +890,7 @@ fn render_prompt_if_needed(
             None,
         );
         render::render_text_texture(
-            &mut context.canvas,
+            &mut video.canvas,
             &textures.press_y_text_texture,
             prompt_position.0,
             prompt_position.1 + prompt_line_spacing,

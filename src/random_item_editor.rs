@@ -7,15 +7,11 @@ use crate::Context;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
-use sdl2::render::Texture;
+use sdl2::render::{Canvas, Texture};
+use sdl2::video::Window;
 
-fn load_text<'a>(context: &mut Context<'a>, text: &str) -> Texture<'a> {
-    create_text_texture(
-        &mut context.canvas,
-        &context.texture_creator,
-        &context.font,
-        text,
-    )
+fn load_text<'a>(canvas: &mut Canvas<Window>, context: &Context<'a>, text: &str) -> Texture<'a> {
+    create_text_texture(canvas, &context.texture_creator, &context.font, text)
 }
 
 fn get_value(level: &Level, game_type: &GameType, index: usize) -> u32 {
@@ -53,34 +49,33 @@ fn set_value(level: &mut Level, game_type: &GameType, index: usize, value: u32) 
 }
 
 pub struct RandomItemEditorState<'a> {
-    context: Context<'a>,
-    game_type: GameType,
     normal_game_instruction_text: Texture<'a>,
     deathmatch_instruction_text: Texture<'a>,
     esc_instruction_text: Texture<'a>,
     selected: usize,
 }
 
-impl RandomItemEditorState<'_> {
-    pub fn new(mut context: Context, game_type: GameType) -> RandomItemEditorState {
-        let normal_game_instruction_text = load_text(&mut context, "NORMAL GAME CRATES");
-        let deathmatch_instruction_text = load_text(&mut context, "DEATHMATCH CRATES");
-        let esc_instruction_text = load_text(&mut context, "press ESC to exit");
+impl<'a> RandomItemEditorState<'a> {
+    pub fn new(canvas: &mut Canvas<Window>, context: &Context) -> Self {
+        let normal_game_instruction_text = load_text(canvas, context, "NORMAL GAME CRATES");
+        let deathmatch_instruction_text = load_text(canvas, context, "DEATHMATCH CRATES");
+        let esc_instruction_text = load_text(canvas, context, "press ESC to exit");
 
         RandomItemEditorState {
-            context,
-            game_type,
             normal_game_instruction_text,
             deathmatch_instruction_text,
             esc_instruction_text,
             selected: 0,
         }
     }
-}
 
-impl<'a> RandomItemEditorState<'a> {
-    pub fn exec(mut self) -> NextMode<'a> {
-        let mut event_pump = self.context.sdl.event_pump().unwrap();
+    pub fn exec(
+        &mut self,
+        canvas: &mut Canvas<Window>,
+        context: &mut Context,
+        game_type: GameType,
+    ) -> NextMode {
+        let mut event_pump = context.sdl.event_pump().unwrap();
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -88,12 +83,12 @@ impl<'a> RandomItemEditorState<'a> {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => {
-                    self.context.sdl.video().unwrap().text_input().stop();
-                    return NextMode::editor(self.context);
+                    context.sdl.video().unwrap().text_input().stop();
+                    return NextMode::Editor;
                 }
                 Event::KeyDown { keycode, .. } => match keycode.unwrap() {
                     Keycode::Down => {
-                        if self.selected < self.context.textures.crates.len() - 1 {
+                        if self.selected < context.textures.crates.len() - 1 {
                             self.selected += 1;
                         }
                     }
@@ -103,23 +98,13 @@ impl<'a> RandomItemEditorState<'a> {
                         }
                     }
                     Keycode::Right => {
-                        let value = get_value(&self.context.level, &self.game_type, self.selected);
-                        set_value(
-                            &mut self.context.level,
-                            &self.game_type,
-                            self.selected,
-                            value + 1,
-                        );
+                        let value = get_value(&context.level, &game_type, self.selected);
+                        set_value(&mut context.level, &game_type, self.selected, value + 1);
                     }
                     Keycode::Left => {
-                        let value = get_value(&self.context.level, &self.game_type, self.selected);
+                        let value = get_value(&context.level, &game_type, self.selected);
                         if value > 0 {
-                            set_value(
-                                &mut self.context.level,
-                                &self.game_type,
-                                self.selected,
-                                value - 1,
-                            );
+                            set_value(&mut context.level, &game_type, self.selected, value - 1);
                         }
                     }
                     _ => (),
@@ -128,13 +113,13 @@ impl<'a> RandomItemEditorState<'a> {
             }
         }
 
-        self.context.canvas.set_draw_color(Color::from((0, 0, 0)));
-        self.context.canvas.clear();
-        let render_size = self.context.graphics.get_render_size();
+        canvas.set_draw_color(Color::from((0, 0, 0)));
+        canvas.clear();
+        let render_size = context.graphics.get_render_size();
 
         render::render_text_texture_coordinates(
-            &mut self.context.canvas,
-            match self.game_type {
+            canvas,
+            match game_type {
                 GameType::Normal => &self.normal_game_instruction_text,
                 GameType::Deathmatch => &self.deathmatch_instruction_text,
             },
@@ -146,12 +131,12 @@ impl<'a> RandomItemEditorState<'a> {
         let y = 50;
         let mut option_position = (40, y);
         let mut value_position = (280, option_position.1);
-        for x in 0..self.context.textures.crates.len() {
-            let option = &self.context.textures.crates[x];
+        for x in 0..context.textures.crates.len() {
+            let option = &context.textures.crates[x];
             if self.selected == x {
                 render::render_text_texture(
-                    &mut self.context.canvas,
-                    &self.context.textures.selected_icon,
+                    canvas,
+                    &context.textures.selected_icon,
                     option_position.0 - 20,
                     option_position.1 + 3,
                     render_size,
@@ -159,7 +144,7 @@ impl<'a> RandomItemEditorState<'a> {
                 );
             }
             render::render_text_texture(
-                &mut self.context.canvas,
+                canvas,
                 &option,
                 option_position.0,
                 option_position.1,
@@ -167,13 +152,13 @@ impl<'a> RandomItemEditorState<'a> {
                 None,
             );
             let value_texture = create_text_texture(
-                &mut self.context.canvas,
-                &self.context.texture_creator,
-                &self.context.font,
-                &get_value(&self.context.level, &self.game_type, x).to_string(),
+                canvas,
+                &context.texture_creator,
+                &context.font,
+                &get_value(&context.level, &game_type, x).to_string(),
             );
             render::render_text_texture(
-                &mut self.context.canvas,
+                canvas,
                 &value_texture,
                 value_position.0,
                 value_position.1,
@@ -191,13 +176,13 @@ impl<'a> RandomItemEditorState<'a> {
             }
         }
         render::render_text_texture_coordinates(
-            &mut self.context.canvas,
+            canvas,
             &self.esc_instruction_text,
-            get_bottom_text_position(self.context.graphics.resolution_y),
+            get_bottom_text_position(context.graphics.resolution_y),
             render_size,
             None,
         );
-        render::render_and_wait(&mut self.context.canvas);
-        NextMode::RandomItemEditor(self)
+        render::render_and_wait(canvas);
+        NextMode::RandomItemEditor(game_type)
     }
 }

@@ -4,7 +4,8 @@ use crate::Context;
 use crate::NextMode;
 use sdl2::event::Event;
 use sdl2::pixels::Color;
-use sdl2::render::Texture;
+use sdl2::render::{Canvas, Texture};
+use sdl2::video::Window;
 
 const LINES: [&str; 19] = [
     "ESC - quit",
@@ -29,56 +30,43 @@ const LINES: [&str; 19] = [
 ];
 
 pub struct HelpState<'a> {
-    context: Context<'a>,
     line_textures: Vec<Texture<'a>>,
 }
 
-impl HelpState<'_> {
-    pub fn new(mut context: Context) -> HelpState {
+impl<'a> HelpState<'a> {
+    pub fn new(canvas: &mut Canvas<Window>, context: &Context) -> Self {
         let line_textures = LINES
             .iter()
-            .map(|text| {
-                create_text_texture(
-                    &mut context.canvas,
-                    &context.texture_creator,
-                    &context.font,
-                    text,
-                )
-            })
+            .map(|text| create_text_texture(canvas, &context.texture_creator, &context.font, text))
             .collect();
 
-        HelpState {
-            context,
-            line_textures,
-        }
+        HelpState { line_textures }
     }
 }
 impl<'a> HelpState<'a> {
-    pub fn exec(mut self) -> NextMode<'a> {
-        let mut event_pump = self.context.sdl.event_pump().unwrap();
+    pub fn exec(&self, canvas: &mut Canvas<Window>, context: &mut Context) -> NextMode {
+        let mut event_pump = context.sdl.event_pump().unwrap();
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit { .. } | Event::KeyDown { .. } => {
-                    return NextMode::editor(self.context)
-                }
+                Event::Quit { .. } | Event::KeyDown { .. } => return NextMode::Editor,
                 _ => {}
             }
         }
-        self.context.canvas.set_draw_color(Color::from((0, 0, 0)));
-        self.context.canvas.clear();
+        canvas.set_draw_color(Color::from((0, 0, 0)));
+        canvas.clear();
         let mut position = 6;
         for line_texture in &self.line_textures {
             render::render_text_texture(
-                &mut self.context.canvas,
+                canvas,
                 &line_texture,
                 10,
                 position,
-                self.context.graphics.get_render_size(),
+                context.graphics.get_render_size(),
                 None,
             );
             position += 22;
         }
-        render::render_and_wait(&mut self.context.canvas);
-        NextMode::Help(self)
+        render::render_and_wait(canvas);
+        NextMode::Help
     }
 }
