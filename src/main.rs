@@ -67,23 +67,43 @@ pub fn main() {
         automatic_shadows: true,
     };
 
-    let mut editor = EditorState::new(&renderer, &context);
-    let tile_select = TileSelectState::new(&renderer, &context);
-    let help = HelpState::new(&renderer, &context);
-    let mut general_level_info = GeneralLevelInfoState::new(&renderer, &context);
-    let mut random_item_editor = RandomItemEditorState::new(&renderer, &context);
-    let mut load_level = LoadLevelState::new(&renderer, &context);
+    let mut state = State::new(&renderer, &context);
+    while state.frame(&mut context) {}
+}
 
-    let mut mode = Mode::Editor;
-    loop {
-        mode = match mode {
-            Mode::Editor => editor.frame(&mut context),
-            Mode::TileSelect => tile_select.frame(&mut context),
-            Mode::Help => help.frame(&mut context),
-            Mode::GeneralLevelInfo => general_level_info.frame(&mut context),
-            Mode::RandomItemEditor(game_type) => random_item_editor.frame(&mut context, game_type),
-            Mode::LoadLevel => load_level.frame(&mut context),
-            Mode::Quit => break,
+struct State<'a> {
+    mode: Mode,
+    editor: EditorState<'a>,
+    tile_select: TileSelectState<'a>,
+    help: HelpState<'a>,
+    general_level_info: GeneralLevelInfoState<'a>,
+    random_item_editor: RandomItemEditorState<'a>,
+    load_level: LoadLevelState<'a>,
+}
+
+impl<'a> State<'a> {
+    pub fn new(renderer: &'a Renderer, context: &Context<'a>) -> Self {
+        Self {
+            mode: Mode::Editor,
+            editor: EditorState::new(renderer, context),
+            tile_select: TileSelectState::new(renderer, context),
+            help: HelpState::new(renderer, context),
+            general_level_info: GeneralLevelInfoState::new(renderer, context),
+            random_item_editor: RandomItemEditorState::new(renderer, context),
+            load_level: LoadLevelState::new(renderer, context),
+        }
+    }
+
+    pub fn frame(&mut self, context: &mut Context<'a>) -> bool {
+        self.mode = match self.mode {
+            Mode::Editor => self.editor.frame(context),
+            Mode::TileSelect => self.tile_select.frame(context),
+            Mode::Help => self.help.frame(context),
+            Mode::GeneralLevelInfo => self.general_level_info.frame(context),
+            Mode::RandomItemEditor(game_type) => self.random_item_editor.frame(context, game_type),
+            Mode::LoadLevel => self.load_level.frame(context),
+            Mode::Quit => return false,
         };
+        true
     }
 }
