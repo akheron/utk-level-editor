@@ -7,7 +7,6 @@ use crate::context_util::resize;
 use crate::level::Level;
 use crate::types::*;
 use crate::util::{get_bottom_text_position, TITLE_POSITION};
-use crate::Mode::*;
 use crate::{Context, Renderer};
 
 fn load_text<'a>(renderer: &'a Renderer, context: &Context, text: &str) -> Texture<'a> {
@@ -71,50 +70,55 @@ impl<'a> RandomItemEditorState<'a> {
         }
     }
 
-    pub fn frame(&mut self, context: &mut Context<'a>, game_type: GameType) -> Mode {
-        let mut event_pump = context.sdl.event_pump().unwrap();
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    context.sdl.video().unwrap().text_input().stop();
-                    return Editor;
-                }
-                Event::Window { win_event, .. } => {
-                    if resize(self.renderer, context, win_event) {
-                        return Editor;
-                    }
-                }
-                Event::KeyDown { keycode, .. } => match keycode.unwrap() {
-                    Keycode::Down => {
-                        if self.selected < context.textures.crates.len() - 1 {
-                            self.selected += 1;
-                        }
-                    }
-                    Keycode::Up => {
-                        if self.selected > 0 {
-                            self.selected -= 1;
-                        }
-                    }
-                    Keycode::Right => {
-                        let value = get_value(&context.level, &game_type, self.selected);
-                        set_value(&mut context.level, &game_type, self.selected, value + 1);
-                    }
-                    Keycode::Left => {
-                        let value = get_value(&context.level, &game_type, self.selected);
-                        if value > 0 {
-                            set_value(&mut context.level, &game_type, self.selected, value - 1);
-                        }
-                    }
-                    _ => (),
-                },
-                _ => {}
+    pub fn handle_event(
+        &mut self,
+        context: &mut Context<'a>,
+        game_type: GameType,
+        event: Event,
+    ) -> Mode {
+        match event {
+            Event::Quit { .. }
+            | Event::KeyDown {
+                keycode: Some(Keycode::Escape),
+                ..
+            } => {
+                context.sdl.video().unwrap().text_input().stop();
+                return Mode::Editor;
             }
+            Event::Window { win_event, .. } => {
+                if resize(self.renderer, context, win_event) {
+                    return Mode::Editor;
+                }
+            }
+            Event::KeyDown { keycode, .. } => match keycode.unwrap() {
+                Keycode::Down => {
+                    if self.selected < context.textures.crates.len() - 1 {
+                        self.selected += 1;
+                    }
+                }
+                Keycode::Up => {
+                    if self.selected > 0 {
+                        self.selected -= 1;
+                    }
+                }
+                Keycode::Right => {
+                    let value = get_value(&context.level, &game_type, self.selected);
+                    set_value(&mut context.level, &game_type, self.selected, value + 1);
+                }
+                Keycode::Left => {
+                    let value = get_value(&context.level, &game_type, self.selected);
+                    if value > 0 {
+                        set_value(&mut context.level, &game_type, self.selected, value - 1);
+                    }
+                }
+                _ => (),
+            },
+            _ => {}
         }
+        Mode::RandomItemEditor(game_type)
+    }
 
+    pub fn render(&mut self, context: &Context<'a>, game_type: GameType) {
         self.renderer.clear_screen(Color::from((0, 0, 0)));
         let render_size = context.graphics.get_render_size();
 
@@ -177,6 +181,5 @@ impl<'a> RandomItemEditorState<'a> {
             None,
         );
         self.renderer.render_and_wait();
-        RandomItemEditor(game_type)
     }
 }

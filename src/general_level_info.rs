@@ -6,7 +6,6 @@ use sdl2::render::Texture;
 use crate::context_util::resize;
 use crate::types::*;
 use crate::Context;
-use crate::Mode::*;
 use crate::{get_bottom_text_position, Renderer};
 
 enum Value {
@@ -110,73 +109,74 @@ impl<'a> GeneralLevelInfoState<'a> {
         }
     }
 
-    pub fn frame(&mut self, context: &mut Context<'a>) -> Mode {
-        self.enable_text_editing_if_needed(context);
-
-        let mut event_pump = context.sdl.event_pump().unwrap();
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    context.sdl.video().unwrap().text_input().stop();
-                    return Editor;
+    pub fn handle_event(&mut self, context: &mut Context<'a>, event: Event) -> Mode {
+        match event {
+            Event::Quit { .. }
+            | Event::KeyDown {
+                keycode: Some(Keycode::Escape),
+                ..
+            } => {
+                context.sdl.video().unwrap().text_input().stop();
+                return Mode::Editor;
+            }
+            Event::Window { win_event, .. } => {
+                if resize(self.renderer, context, win_event) {
+                    return Mode::Editor;
                 }
-                Event::Window { win_event, .. } => {
-                    if resize(self.renderer, context, win_event) {
-                        return Editor;
+            }
+            Event::TextInput { text, .. } => {
+                if let Value::Comment = self.options[self.selected].value {
+                    sanitize_level_comment_input(&text, &mut context.level.general_info.comment)
+                }
+            }
+            Event::KeyDown { keycode, .. } => match keycode.unwrap() {
+                Keycode::Down => {
+                    if self.selected < self.options.len() - 1 {
+                        self.selected += 1;
+                        self.enable_text_editing_if_needed(context);
                     }
                 }
-                Event::TextInput { text, .. } => {
-                    if let Value::Comment = self.options[self.selected].value {
-                        sanitize_level_comment_input(&text, &mut context.level.general_info.comment)
+                Keycode::Up => {
+                    if self.selected > 0 {
+                        self.selected -= 1;
+                        self.enable_text_editing_if_needed(context);
                     }
                 }
-                Event::KeyDown { keycode, .. } => match keycode.unwrap() {
-                    Keycode::Down => {
-                        if self.selected < self.options.len() - 1 {
-                            self.selected += 1;
-                            self.enable_text_editing_if_needed(context);
+                Keycode::Right => match self.options[self.selected].value {
+                    Value::Number(index) => context.level.general_info.enemy_table[index] += 1,
+                    Value::TimeLimit => context.level.general_info.time_limit += 10,
+                    _ => (),
+                },
+                Keycode::Left => match self.options[self.selected].value {
+                    Value::Number(index) => {
+                        let value = &mut context.level.general_info.enemy_table[index];
+                        if *value > 0 {
+                            *value -= 1;
                         }
                     }
-                    Keycode::Up => {
-                        if self.selected > 0 {
-                            self.selected -= 1;
-                            self.enable_text_editing_if_needed(context);
-                        }
-                    }
-                    Keycode::Right => match self.options[self.selected].value {
-                        Value::Number(index) => context.level.general_info.enemy_table[index] += 1,
-                        Value::TimeLimit => context.level.general_info.time_limit += 10,
-                        _ => (),
-                    },
-                    Keycode::Left => match self.options[self.selected].value {
-                        Value::Number(index) => {
-                            let value = &mut context.level.general_info.enemy_table[index];
-                            if *value > 0 {
-                                *value -= 1;
-                            }
-                        }
-                        Value::TimeLimit => {
-                            let value = &mut context.level.general_info.time_limit;
-                            if *value > 0 {
-                                *value -= 10;
-                            }
-                        }
-                        _ => (),
-                    },
-                    Keycode::Backspace => {
-                        if let Value::Comment = self.options[self.selected].value {
-                            context.level.general_info.comment.pop();
+                    Value::TimeLimit => {
+                        let value = &mut context.level.general_info.time_limit;
+                        if *value > 0 {
+                            *value -= 10;
                         }
                     }
                     _ => (),
                 },
-                _ => {}
-            }
+                Keycode::Backspace => {
+                    if let Value::Comment = self.options[self.selected].value {
+                        context.level.general_info.comment.pop();
+                    }
+                }
+                _ => (),
+            },
+            _ => {}
         }
+        Mode::GeneralLevelInfo
+    }
+
+    pub fn render(&mut self, context: &Context<'a>) {
+        // TODO: Call when GeneralLevelInfo is entered instead of every frame
+        self.enable_text_editing_if_needed(context);
 
         self.renderer.clear_screen(Color::from((0, 0, 0)));
         let mut option_position = (40, 20);
@@ -221,7 +221,6 @@ impl<'a> GeneralLevelInfoState<'a> {
             None,
         );
         self.renderer.render_and_wait();
-        GeneralLevelInfo
     }
 
     fn enable_text_editing_if_needed(&self, context: &Context) {

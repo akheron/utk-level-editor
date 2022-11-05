@@ -4,7 +4,6 @@ use sdl2::render::Texture;
 
 use crate::context_util::resize;
 use crate::Mode;
-use crate::Mode::*;
 use crate::{Context, Renderer};
 
 const LINES: [&str; 19] = [
@@ -47,22 +46,23 @@ impl<'a> HelpState<'a> {
         }
     }
 
-    pub fn frame(&self, context: &mut Context<'a>) -> Mode {
-        let mut event_pump = context.sdl.event_pump().unwrap();
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. } => return Editor,
-                Event::KeyDown { .. } => {
-                    return Editor;
-                }
-                Event::Window { win_event, .. } => {
-                    if resize(self.renderer, context, win_event) {
-                        return Editor;
-                    }
-                }
-                _ => {}
+    pub fn handle_event(&mut self, context: &mut Context<'a>, event: Event) -> Mode {
+        match event {
+            Event::Quit { .. } => return Mode::Editor,
+            Event::KeyDown { .. } => {
+                return Mode::Editor;
             }
+            Event::Window { win_event, .. } => {
+                if resize(self.renderer, context, win_event) {
+                    return Mode::Editor;
+                }
+            }
+            _ => {}
         }
+        Mode::Help
+    }
+
+    pub fn render(&self, context: &Context<'a>) {
         self.renderer.clear_screen(Color::from((0, 0, 0)));
         let mut position = 6;
         for line_texture in &self.line_textures {
@@ -76,6 +76,5 @@ impl<'a> HelpState<'a> {
             position += 22;
         }
         self.renderer.render_and_wait();
-        Help
     }
 }

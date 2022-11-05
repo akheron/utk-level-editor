@@ -8,7 +8,6 @@ use crate::context_util::resize;
 use crate::types::*;
 use crate::util::*;
 use crate::Context;
-use crate::Mode::*;
 use crate::{render, Renderer};
 
 pub struct TileSelectState<'a> {
@@ -32,84 +31,82 @@ impl<'a> TileSelectState<'a> {
             ),
         }
     }
-    pub fn frame(&self, context: &mut Context<'a>) -> Mode {
-        let mut event_pump = context.sdl.event_pump().unwrap();
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => return Editor,
-                Event::Window { win_event, .. } => {
-                    if resize(self.renderer, context, win_event) {
-                        return Editor;
-                    }
+
+    pub fn handle_event(&self, context: &mut Context<'a>, event: Event) -> Mode {
+        match event {
+            Event::Quit { .. }
+            | Event::KeyDown {
+                keycode: Some(Keycode::Escape),
+                ..
+            } => return Mode::Editor,
+            Event::Window { win_event, .. } => {
+                if resize(self.renderer, context, win_event) {
+                    return Mode::Editor;
                 }
-                Event::KeyDown { keycode, .. } => match keycode.unwrap() {
-                    Keycode::Space => {
-                        return Editor;
-                    }
-                    Keycode::PageDown => {
-                        context.texture_type_scrolled =
-                            if context.texture_type_scrolled == TextureType::Floor {
-                                TextureType::Walls
-                            } else if context.texture_type_scrolled == TextureType::Walls {
-                                TextureType::Shadow
-                            } else {
-                                TextureType::Floor
-                            }
-                    }
-                    Keycode::PageUp => {
-                        context.texture_type_scrolled =
-                            if context.texture_type_scrolled == TextureType::Floor {
-                                TextureType::Shadow
-                            } else if context.texture_type_scrolled == TextureType::Shadow {
-                                TextureType::Walls
-                            } else {
-                                TextureType::Floor
-                            }
-                    }
-                    _ => {}
-                },
-                Event::MouseMotion { x, y, .. } => {
-                    context.mouse.0 = x as u32;
-                    context.mouse.1 = y as u32;
+            }
+            Event::KeyDown { keycode, .. } => match keycode.unwrap() {
+                Keycode::Space => {
+                    return Mode::Editor;
                 }
-                Event::MouseButtonDown {
-                    mouse_btn: MouseButton::Left,
-                    ..
-                } => {
-                    let texture_selected = match &context.texture_type_scrolled {
-                        TextureType::Floor => &context.textures.floor,
-                        TextureType::Walls => &context.textures.walls,
-                        TextureType::Shadow => &context.textures.shadows,
-                    };
-                    let (texture_width, texture_height) = render::get_texture_render_size(
-                        texture_selected,
-                        context.graphics.render_multiplier,
-                    );
-                    let clicked_tile_id = get_tile_id_from_coordinates(
-                        &context.graphics,
-                        &limit_coordinates(&context.mouse, &(texture_width, texture_height)),
-                        texture_width / context.graphics.get_render_size(),
-                        None,
-                    );
-                    if clicked_tile_id
-                        < get_number_of_tiles_in_texture(
-                            texture_selected,
-                            context.graphics.tile_size,
-                        )
-                    {
-                        context.selected_tile_id = clicked_tile_id;
-                        context.texture_type_selected = context.texture_type_scrolled;
-                        return Editor;
-                    }
+                Keycode::PageDown => {
+                    context.texture_type_scrolled =
+                        if context.texture_type_scrolled == TextureType::Floor {
+                            TextureType::Walls
+                        } else if context.texture_type_scrolled == TextureType::Walls {
+                            TextureType::Shadow
+                        } else {
+                            TextureType::Floor
+                        }
+                }
+                Keycode::PageUp => {
+                    context.texture_type_scrolled =
+                        if context.texture_type_scrolled == TextureType::Floor {
+                            TextureType::Shadow
+                        } else if context.texture_type_scrolled == TextureType::Shadow {
+                            TextureType::Walls
+                        } else {
+                            TextureType::Floor
+                        }
                 }
                 _ => {}
+            },
+            Event::MouseMotion { x, y, .. } => {
+                context.mouse.0 = x as u32;
+                context.mouse.1 = y as u32;
             }
+            Event::MouseButtonDown {
+                mouse_btn: MouseButton::Left,
+                ..
+            } => {
+                let texture_selected = match &context.texture_type_scrolled {
+                    TextureType::Floor => &context.textures.floor,
+                    TextureType::Walls => &context.textures.walls,
+                    TextureType::Shadow => &context.textures.shadows,
+                };
+                let (texture_width, texture_height) = render::get_texture_render_size(
+                    texture_selected,
+                    context.graphics.render_multiplier,
+                );
+                let clicked_tile_id = get_tile_id_from_coordinates(
+                    &context.graphics,
+                    &limit_coordinates(&context.mouse, &(texture_width, texture_height)),
+                    texture_width / context.graphics.get_render_size(),
+                    None,
+                );
+                if clicked_tile_id
+                    < get_number_of_tiles_in_texture(texture_selected, context.graphics.tile_size)
+                {
+                    context.selected_tile_id = clicked_tile_id;
+                    context.texture_type_selected = context.texture_type_scrolled;
+                    return Mode::Editor;
+                }
+            }
+            _ => {}
         }
+        Mode::TileSelect
+    }
 
+    pub fn render(&self, context: &Context<'a>) {
         self.renderer.clear_screen(Color::from((0, 0, 0)));
         let texture_selected = match context.texture_type_scrolled {
             TextureType::Floor => &context.textures.floor,
@@ -167,6 +164,5 @@ impl<'a> TileSelectState<'a> {
             None,
         );
         self.renderer.render_and_wait();
-        TileSelect
     }
 }

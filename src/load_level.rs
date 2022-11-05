@@ -8,7 +8,6 @@ use crate::context_util::resize;
 use crate::types::*;
 use crate::util::TITLE_POSITION;
 use crate::Context;
-use crate::Mode::*;
 use crate::{get_bottom_text_position, Renderer};
 
 struct LoadFile<'a> {
@@ -54,57 +53,57 @@ impl<'a> LoadLevelState<'a> {
         }
     }
 
-    pub fn frame(&mut self, context: &mut Context<'a>) -> Mode {
-        let mut event_pump = context.sdl.event_pump().unwrap();
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => return Editor,
-                Event::Window { win_event, .. } => {
-                    if resize(self.renderer, context, win_event) {
-                        return Editor;
+    pub fn handle_event(&mut self, context: &mut Context<'a>, event: Event) -> Mode {
+        match event {
+            Event::Quit { .. }
+            | Event::KeyDown {
+                keycode: Some(Keycode::Escape),
+                ..
+            } => return Mode::Editor,
+            Event::Window { win_event, .. } => {
+                if resize(self.renderer, context, win_event) {
+                    return Mode::Editor;
+                }
+            }
+            Event::KeyDown { keycode, .. } => match keycode.unwrap() {
+                Keycode::Down => {
+                    if self.selected < self.files.len() - 1 {
+                        self.selected += 1;
                     }
                 }
-                Event::KeyDown { keycode, .. } => match keycode.unwrap() {
-                    Keycode::Down => {
-                        if self.selected < self.files.len() - 1 {
-                            self.selected += 1;
-                        }
+                Keycode::Up => {
+                    if self.selected > 0 {
+                        self.selected -= 1;
                     }
-                    Keycode::Up => {
-                        if self.selected > 0 {
-                            self.selected -= 1;
-                        }
+                }
+                Keycode::Return | Keycode::KpEnter => {
+                    if !self.files.is_empty() {
+                        context
+                            .level
+                            .deserialize(&self.files[self.selected].filename)
+                            .unwrap();
+                        let level_name = self.files[self.selected]
+                            .filename
+                            .strip_prefix("./")
+                            .unwrap()
+                            .to_string();
+                        context.textures.saved_level_name = Some(
+                            self.renderer
+                                .create_text_texture(&context.font, &level_name.to_lowercase()),
+                        );
+                        context.level_save_name =
+                            level_name.strip_suffix(".LEV").unwrap().to_string();
                     }
-                    Keycode::Return | Keycode::KpEnter => {
-                        if !self.files.is_empty() {
-                            context
-                                .level
-                                .deserialize(&self.files[self.selected].filename)
-                                .unwrap();
-                            let level_name = self.files[self.selected]
-                                .filename
-                                .strip_prefix("./")
-                                .unwrap()
-                                .to_string();
-                            context.textures.saved_level_name = Some(
-                                self.renderer
-                                    .create_text_texture(&context.font, &level_name.to_lowercase()),
-                            );
-                            context.level_save_name =
-                                level_name.strip_suffix(".LEV").unwrap().to_string();
-                        }
-                        return Editor;
-                    }
-                    _ => {}
-                },
+                    return Mode::Editor;
+                }
                 _ => {}
-            }
+            },
+            _ => {}
         }
+        Mode::LoadLevel
+    }
 
+    pub fn render(&mut self, context: &Context<'a>) {
         self.renderer.clear_screen(Color::from((0, 0, 0)));
         let text_position = (40, 60);
         let render_size = context.graphics.get_render_size();
@@ -140,6 +139,5 @@ impl<'a> LoadLevelState<'a> {
             None,
         );
         self.renderer.render_and_wait();
-        LoadLevel
     }
 }

@@ -1,3 +1,4 @@
+use sdl2::event::Event;
 use sdl2::image::InitFlag;
 use sdl2::render::Texture;
 
@@ -49,6 +50,7 @@ pub fn main() {
         .resizable()
         .build()
         .unwrap();
+    let mut event_pump = sdl.event_pump().unwrap();
     let renderer = Renderer::new(window);
     let font = load_font("./assets/TETRIS.FN2");
     let textures = get_textures(&renderer, &font);
@@ -68,7 +70,15 @@ pub fn main() {
     };
 
     let mut state = State::new(&renderer, &context);
-    while state.frame(&mut context) {}
+    loop {
+        for event in event_pump.poll_iter() {
+            match state.handle_event(&mut context, event) {
+                RunState::Quit => return,
+                RunState::Run => {}
+            }
+        }
+        state.render(&context)
+    }
 }
 
 struct State<'a> {
@@ -94,16 +104,38 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn frame(&mut self, context: &mut Context<'a>) -> bool {
+    pub fn handle_event(&mut self, context: &mut Context<'a>, event: Event) -> RunState {
         self.mode = match self.mode {
-            Mode::Editor => self.editor.frame(context),
-            Mode::TileSelect => self.tile_select.frame(context),
-            Mode::Help => self.help.frame(context),
-            Mode::GeneralLevelInfo => self.general_level_info.frame(context),
-            Mode::RandomItemEditor(game_type) => self.random_item_editor.frame(context, game_type),
-            Mode::LoadLevel => self.load_level.frame(context),
-            Mode::Quit => return false,
+            Mode::Editor => self.editor.handle_event(context, event),
+            Mode::TileSelect => self.tile_select.handle_event(context, event),
+            Mode::Help => self.help.handle_event(context, event),
+            Mode::GeneralLevelInfo => self.general_level_info.handle_event(context, event),
+            Mode::RandomItemEditor(game_mode) => self
+                .random_item_editor
+                .handle_event(context, game_mode, event),
+            Mode::LoadLevel => self.load_level.handle_event(context, event),
+            Mode::Quit => Mode::Quit,
         };
-        true
+        match self.mode {
+            Mode::Quit => RunState::Quit,
+            _ => RunState::Run,
+        }
     }
+
+    pub fn render(&mut self, context: &Context<'a>) {
+        match self.mode {
+            Mode::Editor => self.editor.render(context),
+            Mode::TileSelect => self.tile_select.render(context),
+            Mode::Help => self.help.render(context),
+            Mode::GeneralLevelInfo => self.general_level_info.render(context),
+            Mode::RandomItemEditor(game_type) => self.random_item_editor.render(context, game_type),
+            Mode::LoadLevel => self.load_level.render(context),
+            Mode::Quit => {}
+        };
+    }
+}
+
+enum RunState {
+    Run,
+    Quit,
 }
