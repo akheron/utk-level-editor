@@ -1,12 +1,11 @@
-extern crate sdl2;
+use sdl2::event::Event;
+use sdl2::pixels::Color;
+use sdl2::render::Texture;
 
 use crate::context_util::resize;
 use crate::Mode;
 use crate::Mode::*;
 use crate::{Context, Renderer};
-use sdl2::event::Event;
-use sdl2::pixels::Color;
-use sdl2::render::Texture;
 
 const LINES: [&str; 19] = [
     "ESC - quit",

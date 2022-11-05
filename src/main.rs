@@ -1,17 +1,30 @@
-extern crate sdl2;
-
-use crate::context::Textures;
-use crate::context_util::get_textures;
-use crate::fn2::load_font;
-use crate::graphics::Graphics;
-use crate::level::Level;
 use sdl2::image::InitFlag;
 use sdl2::render::Texture;
+
+use crate::context::Context;
+use crate::context::Textures;
+use crate::context_util::get_textures;
+use crate::editor::EditorState;
+use crate::fn2::load_font;
+use crate::general_level_info::GeneralLevelInfoState;
+use crate::graphics::Graphics;
+use crate::help::HelpState;
+use crate::level::Level;
+use crate::load_level::LoadLevelState;
+use crate::random_item_editor::RandomItemEditorState;
+use crate::render::Renderer;
+use crate::tile_selector::TileSelectState;
+use crate::types::*;
+use crate::util::*;
+
 mod context;
 mod context_util;
 mod crates;
 mod editor;
+mod editor_textures;
+mod fn2;
 mod general_level_info;
+mod graphics;
 mod help;
 mod level;
 mod load_level;
@@ -20,20 +33,6 @@ mod render;
 mod tile_selector;
 mod types;
 mod util;
-use crate::editor::EditorState;
-use crate::general_level_info::GeneralLevelInfoState;
-use crate::help::HelpState;
-use crate::load_level::LoadLevelState;
-use crate::random_item_editor::RandomItemEditorState;
-use crate::render::Renderer;
-use crate::tile_selector::TileSelectState;
-use context::Context;
-use types::*;
-use util::*;
-
-mod editor_textures;
-mod fn2;
-mod graphics;
 
 pub fn main() {
     let sdl = sdl2::init().unwrap();

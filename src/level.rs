@@ -1,9 +1,10 @@
-use crate::crates::CrateClass;
-use crate::types::*;
-use crate::util::*;
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::collections::HashMap;
 use std::{fs::File, io::Write};
+
+use crate::crates::CrateClass;
+use crate::types::*;
+use crate::util::*;
 
 pub const DIFF_BULLETS: u32 = 9;
 pub const DIFF_WEAPONS: u32 = 11;

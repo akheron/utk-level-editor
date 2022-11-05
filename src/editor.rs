@@ -1,4 +1,8 @@
-extern crate sdl2;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+use sdl2::mouse::MouseButton;
+use sdl2::render::Texture;
+use sdl2::render::TextureQuery;
 
 use crate::context_util::resize;
 use crate::crates::{get_crates, CrateClass, Crates};
@@ -15,11 +19,6 @@ use crate::Mode;
 use crate::Mode::*;
 use crate::TextureType;
 use crate::{render, Renderer};
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::mouse::MouseButton;
-use sdl2::render::Texture;
-use sdl2::render::TextureQuery;
 
 #[derive(PartialEq)]
 enum NewLevelState {

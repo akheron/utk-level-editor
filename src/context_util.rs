@@ -1,9 +1,10 @@
+use sdl2::event::WindowEvent;
+
 use crate::fn2::FN2;
 use crate::Context;
 use crate::Texture;
 use crate::Textures;
 use crate::{crates, Renderer};
-use sdl2::event::WindowEvent;
 
 fn refresh<'a>(renderer: &'a Renderer, context: &mut Context<'a>, window_size: (u32, u32)) {
     context.graphics.resolution_x = window_size.0;

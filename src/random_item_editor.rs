@@ -1,4 +1,7 @@
-extern crate sdl2;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+use sdl2::pixels::Color;
+use sdl2::render::Texture;
 
 use crate::context_util::resize;
 use crate::level::Level;
@@ -6,10 +9,6 @@ use crate::types::*;
 use crate::util::{get_bottom_text_position, TITLE_POSITION};
 use crate::Mode::*;
 use crate::{Context, Renderer};
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
-use sdl2::render::Texture;
 
 fn load_text<'a>(renderer: &'a Renderer, context: &Context, text: &str) -> Texture<'a> {
     renderer.create_text_texture(&context.font, text)

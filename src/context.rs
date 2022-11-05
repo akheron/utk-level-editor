@@ -1,10 +1,11 @@
+use sdl2::render::Texture;
+use sdl2::Sdl;
+
 use crate::fn2::FN2;
 use crate::graphics::Graphics;
 use crate::Level;
 use crate::TextureType;
 use crate::Trigonometry;
-use sdl2::render::Texture;
-use sdl2::Sdl;
 
 pub struct Textures<'a> {
     pub floor: Texture<'a>,

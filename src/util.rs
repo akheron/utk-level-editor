@@ -1,8 +1,9 @@
-use crate::types::Trigonometry;
-use crate::Graphics;
 use sdl2::rect::Rect;
 use sdl2::render::{Texture, TextureQuery};
 use std::cmp;
+
+use crate::types::Trigonometry;
+use crate::Graphics;
 
 pub const TITLE_POSITION: (u32, u32) = (20, 10);
 

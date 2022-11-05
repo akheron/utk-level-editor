@@ -1,13 +1,3 @@
-use crate::crates::CrateClass;
-use crate::fn2::FN2;
-use crate::level::DIFF_BULLETS;
-use crate::level::DIFF_WEAPONS;
-use crate::level::{StaticCrate, StaticCrateType};
-use crate::types::*;
-use crate::util::*;
-use crate::Graphics;
-use crate::Level;
-use crate::Textures;
 use sdl2::image::LoadTexture;
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::rect::Point;
@@ -19,6 +9,17 @@ use sdl2::video::{Window, WindowContext};
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::time::Duration;
+
+use crate::crates::CrateClass;
+use crate::fn2::FN2;
+use crate::level::DIFF_BULLETS;
+use crate::level::DIFF_WEAPONS;
+use crate::level::{StaticCrate, StaticCrateType};
+use crate::types::*;
+use crate::util::*;
+use crate::Graphics;
+use crate::Level;
+use crate::Textures;
 
 pub const TEXT_SIZE_MULTIPLIER: u32 = 2;
 

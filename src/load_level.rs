@@ -1,16 +1,15 @@
-use crate::context_util::resize;
-use crate::util::TITLE_POSITION;
-use crate::{get_bottom_text_position, Renderer};
-use std::fs;
-extern crate sdl2;
-
-use crate::types::*;
-use crate::Context;
-use crate::Mode::*;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::render::Texture;
+use std::fs;
+
+use crate::context_util::resize;
+use crate::types::*;
+use crate::util::TITLE_POSITION;
+use crate::Context;
+use crate::Mode::*;
+use crate::{get_bottom_text_position, Renderer};
 
 struct LoadFile<'a> {
     filename: String,
