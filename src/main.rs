@@ -55,7 +55,6 @@ pub fn main() {
     let font = load_font("./assets/TETRIS.FN2");
     let textures = get_textures(&renderer, &font);
     let mut context = Context {
-        sdl,
         graphics,
         font,
         textures,
@@ -67,6 +66,7 @@ pub fn main() {
         level_save_name: String::new(),
         trigonometry: Trigonometry::new(),
         automatic_shadows: true,
+        sdl_text_input: video_subsystem.text_input(),
     };
 
     let mut state = State::new(&renderer, &context);

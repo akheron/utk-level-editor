@@ -116,7 +116,7 @@ impl<'a> GeneralLevelInfoState<'a> {
                 keycode: Some(Keycode::Escape),
                 ..
             } => {
-                context.sdl.video().unwrap().text_input().stop();
+                context.stop_text_input();
                 return Mode::Editor;
             }
             Event::Window { win_event, .. } => {
@@ -225,8 +225,8 @@ impl<'a> GeneralLevelInfoState<'a> {
 
     fn enable_text_editing_if_needed(&self, context: &Context) {
         match self.options[self.selected].value {
-            Value::Comment => context.sdl.video().unwrap().text_input().start(),
-            _ => context.sdl.video().unwrap().text_input().stop(),
+            Value::Comment => context.start_text_input(),
+            _ => context.stop_text_input(),
         }
     }
 }

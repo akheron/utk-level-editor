@@ -1,5 +1,4 @@
 use sdl2::render::Texture;
-use sdl2::Sdl;
 
 use crate::fn2::FN2;
 use crate::graphics::Graphics;
@@ -17,7 +16,6 @@ pub struct Textures<'a> {
 }
 
 pub struct Context<'a> {
-    pub sdl: Sdl,
     pub graphics: Graphics,
     pub font: FN2,
     pub textures: Textures<'a>,
@@ -29,4 +27,15 @@ pub struct Context<'a> {
     pub level_save_name: String,
     pub trigonometry: Trigonometry,
     pub automatic_shadows: bool,
+    pub sdl_text_input: sdl2::keyboard::TextInputUtil,
+}
+
+impl<'a> Context<'a> {
+    pub fn start_text_input(&self) {
+        self.sdl_text_input.start();
+    }
+
+    pub fn stop_text_input(&self) {
+        self.sdl_text_input.stop();
+    }
 }

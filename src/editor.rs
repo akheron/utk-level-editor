@@ -109,7 +109,7 @@ impl<'a> EditorState<'a> {
                     || self.set_position > 0
                 {
                     self.insert_item = InsertType::None;
-                    context.sdl.video().unwrap().text_input().stop();
+                    context.stop_text_input();
                     self.set_position = 0;
                     PromptType::None
                 } else {
@@ -146,11 +146,11 @@ impl<'a> EditorState<'a> {
                     return Mode::Help;
                 }
                 Keycode::F2 => {
-                    context.sdl.video().unwrap().text_input().stop();
+                    context.stop_text_input();
                     self.prompt = PromptType::Save(SaveLevelType::Prompt);
                 }
                 Keycode::F3 => {
-                    context.sdl.video().unwrap().text_input().stop();
+                    context.stop_text_input();
                     return Mode::LoadLevel;
                 }
                 Keycode::F4 => {
@@ -159,7 +159,7 @@ impl<'a> EditorState<'a> {
                     self.new_level_size_y = DEFAULT_LEVEL_SIZE.1.to_string();
                 }
                 Keycode::F6 => {
-                    context.sdl.video().unwrap().text_input().stop();
+                    context.stop_text_input();
                     self.prompt = PromptType::CreateShadows(if context.automatic_shadows {
                         ShadowPromptType::Enabled
                     } else {
@@ -190,7 +190,7 @@ impl<'a> EditorState<'a> {
                         } else {
                             InsertType::Spotlight(InsertState::Delete)
                         };
-                        context.sdl.video().unwrap().text_input().stop();
+                        context.stop_text_input();
                         self.prompt = PromptType::None;
                     }
                 },
@@ -202,7 +202,7 @@ impl<'a> EditorState<'a> {
                         } else {
                             InsertType::Steam(InsertState::Delete)
                         };
-                        context.sdl.video().unwrap().text_input().stop();
+                        context.stop_text_input();
                         self.prompt = PromptType::None;
                     }
                 },
@@ -216,18 +216,18 @@ impl<'a> EditorState<'a> {
                         } else {
                             InsertType::NormalCrate(InsertState::Delete)
                         };
-                        context.sdl.video().unwrap().text_input().stop();
+                        context.stop_text_input();
                         self.prompt = PromptType::None;
                     }
                 },
                 Keycode::Y => match self.prompt {
                     PromptType::NewLevel(NewLevelState::Prompt) => {
                         self.prompt = PromptType::NewLevel(NewLevelState::XSize);
-                        context.sdl.video().unwrap().text_input().start();
+                        context.start_text_input();
                     }
                     PromptType::Save(SaveLevelType::Prompt) => {
                         self.prompt = PromptType::Save(SaveLevelType::NameInput);
-                        context.sdl.video().unwrap().text_input().start();
+                        context.start_text_input();
                     }
                     PromptType::CreateShadows(ref shadow_state) => {
                         context.automatic_shadows = match shadow_state {
@@ -419,7 +419,7 @@ impl<'a> EditorState<'a> {
                                 self.new_level_size_x.parse::<u8>().unwrap(),
                                 self.new_level_size_y.parse::<u8>().unwrap(),
                             ));
-                            context.sdl.video().unwrap().text_input().stop();
+                            context.stop_text_input();
                             context.textures.saved_level_name = None;
                             context.level_save_name.clear();
                             self.prompt = PromptType::None;
@@ -430,7 +430,7 @@ impl<'a> EditorState<'a> {
                             let level_save_name_uppercase = context.level_save_name.to_uppercase();
                             let level_saved_name = format!("{}.LEV", &level_save_name_uppercase);
                             context.level.serialize(&level_saved_name).unwrap();
-                            context.sdl.video().unwrap().text_input().stop();
+                            context.stop_text_input();
                             context.textures.saved_level_name =
                                 Some(self.renderer.create_text_texture(
                                     &context.font,

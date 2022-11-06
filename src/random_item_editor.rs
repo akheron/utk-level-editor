@@ -82,7 +82,7 @@ impl<'a> RandomItemEditorState<'a> {
                 keycode: Some(Keycode::Escape),
                 ..
             } => {
-                context.sdl.video().unwrap().text_input().stop();
+                context.stop_text_input();
                 return Mode::Editor;
             }
             Event::Window { win_event, .. } => {
