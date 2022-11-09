@@ -1,9 +1,8 @@
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::render::Texture;
 
 use crate::context_util::resize;
+use crate::event::{Event, Keycode};
 use crate::level::Level;
 use crate::types::*;
 use crate::util::{get_bottom_text_position, TITLE_POSITION};
@@ -79,18 +78,16 @@ impl<'a> RandomItemEditorState<'a> {
         match event {
             Event::Quit { .. }
             | Event::KeyDown {
-                keycode: Some(Keycode::Escape),
-                ..
+                keycode: Keycode::Escape,
             } => {
                 context.stop_text_input();
                 return Mode::Editor;
             }
-            Event::Window { win_event, .. } => {
-                if resize(self.renderer, context, win_event) {
-                    return Mode::Editor;
-                }
+            Event::Window { win_event } => {
+                resize(self.renderer, context, win_event);
+                return Mode::Editor;
             }
-            Event::KeyDown { keycode, .. } => match keycode.unwrap() {
+            Event::KeyDown { keycode, .. } => match keycode {
                 Keycode::Down => {
                     if self.selected < context.textures.crates.len() - 1 {
                         self.selected += 1;

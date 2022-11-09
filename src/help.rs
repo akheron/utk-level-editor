@@ -1,8 +1,8 @@
-use sdl2::event::Event;
 use sdl2::pixels::Color;
 use sdl2::render::Texture;
 
 use crate::context_util::resize;
+use crate::event::Event;
 use crate::Mode;
 use crate::{Context, Renderer};
 
@@ -48,14 +48,13 @@ impl<'a> HelpState<'a> {
 
     pub fn handle_event(&mut self, context: &mut Context<'a>, event: Event) -> Mode {
         match event {
-            Event::Quit { .. } => return Mode::Editor,
+            Event::Quit => return Mode::Editor,
             Event::KeyDown { .. } => {
                 return Mode::Editor;
             }
             Event::Window { win_event, .. } => {
-                if resize(self.renderer, context, win_event) {
-                    return Mode::Editor;
-                }
+                resize(self.renderer, context, win_event);
+                return Mode::Editor;
             }
             _ => {}
         }

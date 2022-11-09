@@ -1,9 +1,8 @@
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::render::Texture;
 
 use crate::context_util::resize;
+use crate::event::{Event, Keycode};
 use crate::types::*;
 use crate::Context;
 use crate::{get_bottom_text_position, Renderer};
@@ -113,23 +112,21 @@ impl<'a> GeneralLevelInfoState<'a> {
         match event {
             Event::Quit { .. }
             | Event::KeyDown {
-                keycode: Some(Keycode::Escape),
-                ..
+                keycode: Keycode::Escape,
             } => {
                 context.stop_text_input();
                 return Mode::Editor;
             }
-            Event::Window { win_event, .. } => {
-                if resize(self.renderer, context, win_event) {
-                    return Mode::Editor;
-                }
+            Event::Window { win_event } => {
+                resize(self.renderer, context, win_event);
+                return Mode::Editor;
             }
             Event::TextInput { text, .. } => {
                 if let Value::Comment = self.options[self.selected].value {
                     sanitize_level_comment_input(&text, &mut context.level.general_info.comment)
                 }
             }
-            Event::KeyDown { keycode, .. } => match keycode.unwrap() {
+            Event::KeyDown { keycode, .. } => match keycode {
                 Keycode::Down => {
                     if self.selected < self.options.len() - 1 {
                         self.selected += 1;

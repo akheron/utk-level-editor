@@ -1,4 +1,3 @@
-use sdl2::event::Event;
 use sdl2::image::InitFlag;
 use sdl2::render::Texture;
 
@@ -6,6 +5,7 @@ use crate::context::Context;
 use crate::context::Textures;
 use crate::context_util::get_textures;
 use crate::editor::EditorState;
+use crate::event::{Event, Keycode, MouseButton, WindowEvent};
 use crate::fn2::load_font;
 use crate::general_level_info::GeneralLevelInfoState;
 use crate::graphics::Graphics;
@@ -23,6 +23,7 @@ mod context_util;
 mod crates;
 mod editor;
 mod editor_textures;
+mod event;
 mod fn2;
 mod general_level_info;
 mod graphics;
@@ -71,10 +72,12 @@ pub fn main() {
 
     let mut state = State::new(&renderer, &context);
     loop {
-        for event in event_pump.poll_iter() {
-            match state.handle_event(&mut context, event) {
-                RunState::Quit => return,
-                RunState::Run => {}
+        for sdl_event in event_pump.poll_iter() {
+            if let Some(event) = convert_event(sdl_event) {
+                match state.handle_event(&mut context, event) {
+                    RunState::Quit => return,
+                    RunState::Run => {}
+                }
             }
         }
         state.render(&context)
@@ -138,4 +141,101 @@ impl<'a> State<'a> {
 enum RunState {
     Run,
     Quit,
+}
+
+fn convert_event(event: sdl2::event::Event) -> Option<Event> {
+    use sdl2::event::Event as SdlEvent;
+    use sdl2::event::WindowEvent as SdlWindowEvent;
+
+    match event {
+        SdlEvent::Quit { .. } => Some(Event::Quit),
+        SdlEvent::Window { win_event, .. } => match win_event {
+            SdlWindowEvent::Resized(w, h) => {
+                if w >= 0 && h >= 0 {
+                    Some(Event::Window {
+                        win_event: WindowEvent::Resized {
+                            width: w as u32,
+                            height: h as u32,
+                        },
+                    })
+                } else {
+                    None
+                }
+            }
+            SdlWindowEvent::Maximized => Some(Event::Window {
+                win_event: WindowEvent::Maximized,
+            }),
+            _ => None,
+        },
+        SdlEvent::KeyDown {
+            keycode: Some(sdl_keycode),
+            ..
+        } => convert_keycode(sdl_keycode).map(|keycode| Event::KeyDown { keycode }),
+        SdlEvent::MouseButtonDown { mouse_btn, .. } => {
+            convert_mouse_button(mouse_btn).map(|button| Event::MouseButtonDown { button })
+        }
+        SdlEvent::MouseButtonUp { mouse_btn, .. } => {
+            convert_mouse_button(mouse_btn).map(|button| Event::MouseButtonUp { button })
+        }
+        SdlEvent::MouseMotion { x, y, .. } => {
+            if x >= 0 && y >= 0 {
+                Some(Event::MouseMotion {
+                    x: x as u32,
+                    y: y as u32,
+                })
+            } else {
+                None
+            }
+        }
+        SdlEvent::TextInput { text, .. } => Some(Event::TextInput { text }),
+        _ => None,
+    }
+}
+
+fn convert_keycode(keycode: sdl2::keyboard::Keycode) -> Option<Keycode> {
+    use sdl2::keyboard::Keycode as SdlKeycode;
+    match keycode {
+        SdlKeycode::Escape => Some(Keycode::Escape),
+        SdlKeycode::Backspace => Some(Keycode::Backspace),
+        SdlKeycode::Return => Some(Keycode::Return),
+        SdlKeycode::Space => Some(Keycode::Space),
+        SdlKeycode::PageDown => Some(Keycode::PageDown),
+        SdlKeycode::PageUp => Some(Keycode::PageUp),
+        SdlKeycode::Up => Some(Keycode::Up),
+        SdlKeycode::Down => Some(Keycode::Down),
+        SdlKeycode::Left => Some(Keycode::Left),
+        SdlKeycode::Right => Some(Keycode::Right),
+        SdlKeycode::KpEnter => Some(Keycode::KpEnter),
+        SdlKeycode::KpMinus => Some(Keycode::KpMinus),
+        SdlKeycode::KpPlus => Some(Keycode::KpPlus),
+        SdlKeycode::Minus => Some(Keycode::Minus),
+        SdlKeycode::Plus => Some(Keycode::Plus),
+        SdlKeycode::A => Some(Keycode::A),
+        SdlKeycode::C => Some(Keycode::C),
+        SdlKeycode::Q => Some(Keycode::Q),
+        SdlKeycode::S => Some(Keycode::S),
+        SdlKeycode::W => Some(Keycode::W),
+        SdlKeycode::X => Some(Keycode::X),
+        SdlKeycode::Y => Some(Keycode::Y),
+        SdlKeycode::Z => Some(Keycode::Z),
+        SdlKeycode::Num1 => Some(Keycode::Num1),
+        SdlKeycode::Num2 => Some(Keycode::Num2),
+        SdlKeycode::F1 => Some(Keycode::F1),
+        SdlKeycode::F2 => Some(Keycode::F2),
+        SdlKeycode::F3 => Some(Keycode::F3),
+        SdlKeycode::F4 => Some(Keycode::F4),
+        SdlKeycode::F6 => Some(Keycode::F6),
+        SdlKeycode::F7 => Some(Keycode::F7),
+        SdlKeycode::F8 => Some(Keycode::F8),
+        SdlKeycode::F9 => Some(Keycode::F9),
+        _ => None,
+    }
+}
+
+fn convert_mouse_button(button: sdl2::mouse::MouseButton) -> Option<MouseButton> {
+    match button {
+        sdl2::mouse::MouseButton::Left => Some(MouseButton::Left),
+        sdl2::mouse::MouseButton::Right => Some(MouseButton::Right),
+        _ => None,
+    }
 }

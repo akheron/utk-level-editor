@@ -1,10 +1,8 @@
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
 use sdl2::render::Texture;
 
 use crate::context_util::resize;
+use crate::event::{Event, Keycode, MouseButton};
 use crate::types::*;
 use crate::util::*;
 use crate::Context;
@@ -34,17 +32,15 @@ impl<'a> TileSelectState<'a> {
 
     pub fn handle_event(&self, context: &mut Context<'a>, event: Event) -> Mode {
         match event {
-            Event::Quit { .. }
+            Event::Quit
             | Event::KeyDown {
-                keycode: Some(Keycode::Escape),
-                ..
+                keycode: Keycode::Escape,
             } => return Mode::Editor,
-            Event::Window { win_event, .. } => {
-                if resize(self.renderer, context, win_event) {
-                    return Mode::Editor;
-                }
+            Event::Window { win_event } => {
+                resize(self.renderer, context, win_event);
+                return Mode::Editor;
             }
-            Event::KeyDown { keycode, .. } => match keycode.unwrap() {
+            Event::KeyDown { keycode } => match keycode {
                 Keycode::Space => {
                     return Mode::Editor;
                 }
@@ -75,7 +71,7 @@ impl<'a> TileSelectState<'a> {
                 context.mouse.1 = y as u32;
             }
             Event::MouseButtonDown {
-                mouse_btn: MouseButton::Left,
+                button: MouseButton::Left,
                 ..
             } => {
                 let texture_selected = match &context.texture_type_scrolled {

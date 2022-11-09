@@ -1,12 +1,10 @@
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::mouse::MouseButton;
 use sdl2::render::Texture;
 use sdl2::render::TextureQuery;
 
 use crate::context_util::resize;
 use crate::crates::{get_crates, CrateClass, Crates};
 use crate::editor_textures::EditorTextures;
+use crate::event::{Event, Keycode, MouseButton};
 use crate::level::StaticCrate;
 use crate::level::StaticCrateType;
 use crate::level::Steam;
@@ -99,10 +97,9 @@ impl<'a> EditorState<'a> {
 
     pub fn handle_event(&mut self, context: &mut Context<'a>, event: Event) -> Mode {
         match event {
-            Event::Quit { .. }
+            Event::Quit
             | Event::KeyDown {
-                keycode: Some(Keycode::Escape),
-                ..
+                keycode: Keycode::Escape,
             } => {
                 self.prompt = if self.prompt != PromptType::None
                     || self.insert_item != InsertType::None
@@ -131,14 +128,11 @@ impl<'a> EditorState<'a> {
                 }
                 _ => {}
             },
-            Event::Window { win_event, .. } => {
-                if resize(self.renderer, context, win_event) {
-                    self.textures = EditorTextures::new(self.renderer, context);
-                }
+            Event::Window { win_event } => {
+                resize(self.renderer, context, win_event);
+                self.textures = EditorTextures::new(self.renderer, context);
             }
-            Event::KeyDown {
-                keycode: Some(key), ..
-            } => match key {
+            Event::KeyDown { keycode, .. } => match keycode {
                 Keycode::Space => {
                     return Mode::TileSelect;
                 }
@@ -178,14 +172,14 @@ impl<'a> EditorState<'a> {
                 Keycode::Num1 | Keycode::Num2 => match self.prompt {
                     PromptType::NewLevel(_) | PromptType::Save(_) => {}
                     _ => {
-                        self.set_position = if key == Keycode::Num1 { 1 } else { 2 };
+                        self.set_position = if keycode == Keycode::Num1 { 1 } else { 2 };
                         self.prompt = PromptType::None;
                     }
                 },
                 Keycode::Q | Keycode::W => match self.prompt {
                     PromptType::Save(_) => {}
                     _ => {
-                        self.insert_item = if key == Keycode::Q {
+                        self.insert_item = if keycode == Keycode::Q {
                             InsertType::Spotlight(InsertState::Place)
                         } else {
                             InsertType::Spotlight(InsertState::Delete)
@@ -197,7 +191,7 @@ impl<'a> EditorState<'a> {
                 Keycode::A | Keycode::S => match self.prompt {
                     PromptType::Save(_) => {}
                     _ => {
-                        self.insert_item = if key == Keycode::A {
+                        self.insert_item = if keycode == Keycode::A {
                             InsertType::Steam(InsertState::Place)
                         } else {
                             InsertType::Steam(InsertState::Delete)
@@ -209,9 +203,9 @@ impl<'a> EditorState<'a> {
                 Keycode::Z | Keycode::X | Keycode::C => match self.prompt {
                     PromptType::Save(_) => {}
                     _ => {
-                        self.insert_item = if key == Keycode::Z {
+                        self.insert_item = if keycode == Keycode::Z {
                             InsertType::NormalCrate(InsertState::Place)
-                        } else if key == Keycode::X {
+                        } else if keycode == Keycode::X {
                             InsertType::DMCrate(InsertState::Place)
                         } else {
                             InsertType::NormalCrate(InsertState::Delete)
@@ -477,27 +471,23 @@ impl<'a> EditorState<'a> {
                 }
             },
             Event::MouseMotion { x, y, .. } => {
-                if x >= 0 && y >= 0 {
-                    context.mouse.0 = x as u32;
-                    context.mouse.1 = y as u32;
-                    if self.mouse_left_click.is_some() {
-                        self.handle_mouse_left_down(context);
-                    }
-                    if self.mouse_right_click {
-                        self.handle_mouse_right_down(context);
-                    }
+                context.mouse.0 = x as u32;
+                context.mouse.1 = y as u32;
+                if self.mouse_left_click.is_some() {
+                    self.handle_mouse_left_down(context);
+                }
+                if self.mouse_right_click {
+                    self.handle_mouse_right_down(context);
                 }
             }
             Event::MouseButtonDown {
-                mouse_btn: MouseButton::Left,
-                ..
+                button: MouseButton::Left,
             } => {
                 self.mouse_left_click = Some(context.mouse);
                 self.handle_mouse_left_down(context);
             }
             Event::MouseButtonUp {
-                mouse_btn: MouseButton::Left,
-                ..
+                button: MouseButton::Left,
             } => {
                 if self.drag_tiles {
                     self.drag_tiles = false;
@@ -531,19 +521,16 @@ impl<'a> EditorState<'a> {
                 self.mouse_left_click = None;
             }
             Event::MouseButtonDown {
-                mouse_btn: MouseButton::Right,
-                ..
+                button: MouseButton::Right,
             } => {
                 self.mouse_right_click = true;
                 self.handle_mouse_right_down(context);
             }
             Event::MouseButtonUp {
-                mouse_btn: MouseButton::Right,
-                ..
+                button: MouseButton::Right,
             } => {
                 self.mouse_right_click = false;
             }
-            _ => {}
         };
         Mode::Editor
     }

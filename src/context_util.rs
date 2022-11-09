@@ -1,5 +1,4 @@
-use sdl2::event::WindowEvent;
-
+use crate::event::WindowEvent;
 use crate::fn2::FN2;
 use crate::Context;
 use crate::Texture;
@@ -12,17 +11,14 @@ fn refresh<'a>(renderer: &'a Renderer, context: &mut Context<'a>, window_size: (
     context.textures = get_textures(renderer, &context.font);
 }
 
-pub fn resize<'a>(renderer: &'a Renderer, context: &mut Context<'a>, event: WindowEvent) -> bool {
+pub fn resize<'a>(renderer: &'a Renderer, context: &mut Context<'a>, event: WindowEvent) {
     match event {
-        WindowEvent::Resized(w, h) => {
-            refresh(renderer, context, (w as u32, h as u32));
-            true
+        WindowEvent::Resized { width, height } => {
+            refresh(renderer, context, (width, height));
         }
         WindowEvent::Maximized => {
             refresh(renderer, context, renderer.window_size());
-            true
         }
-        _ => false,
     }
 }
 

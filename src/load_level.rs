@@ -1,10 +1,9 @@
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::render::Texture;
 use std::fs;
 
 use crate::context_util::resize;
+use crate::event::{Event, Keycode};
 use crate::types::*;
 use crate::util::TITLE_POSITION;
 use crate::Context;
@@ -57,15 +56,13 @@ impl<'a> LoadLevelState<'a> {
         match event {
             Event::Quit { .. }
             | Event::KeyDown {
-                keycode: Some(Keycode::Escape),
-                ..
+                keycode: Keycode::Escape,
             } => return Mode::Editor,
             Event::Window { win_event, .. } => {
-                if resize(self.renderer, context, win_event) {
-                    return Mode::Editor;
-                }
+                resize(self.renderer, context, win_event);
+                return Mode::Editor;
             }
-            Event::KeyDown { keycode, .. } => match keycode.unwrap() {
+            Event::KeyDown { keycode, .. } => match keycode {
                 Keycode::Down => {
                     if self.selected < self.files.len() - 1 {
                         self.selected += 1;
