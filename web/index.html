@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>UTK Level Editor</title>
+  <style>
+    .outer {
+        display: flex;
+        justify-content: center;
+    }
+    .inner {
+        width: 100%;
+        max-width: 800px;
+    }
+    canvas {
+        image-rendering: pixelated;
+        width: 100%;
+        border: 1px solid #000
+    }
+  </style>
+</head>
+<body>
+<div class="outer">
+  <div class="inner">
+    <canvas id="screen"></canvas>
+  </div>
+</div>
+<script type="module">
+  import { run } from './index.js';
+  run()
+</script>
+</body>
+</html>

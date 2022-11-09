@@ -1,0 +1,13 @@
+{
+  "name": "utk-level-editor-web",
+  "version": "0.0.1",
+  "description": "",
+  "scripts": {
+    "lint": "prettier --check *.js"
+  },
+  "author": "Petri Lehtinen <petri@digip.org>",
+  "license": "MIT",
+  "devDependencies": {
+    "prettier": "^2.7.1"
+  }
+}
