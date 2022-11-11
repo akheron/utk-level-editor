@@ -1,5 +1,4 @@
 use sdl2::image::InitFlag;
-use sdl2::render::Texture;
 
 use crate::context::Context;
 use crate::context::Textures;

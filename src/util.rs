@@ -1,6 +1,6 @@
-use sdl2::render::{Texture, TextureQuery};
 use std::cmp;
 
+use crate::render::{get_texture_size, Texture};
 use crate::types::Trigonometry;
 use crate::Graphics;
 
@@ -148,13 +148,13 @@ pub fn get_selected_level_tiles(
 
 pub fn limit_coordinates(coordinates: &(u32, u32), limit: &(u32, u32)) -> (u32, u32) {
     (
-        std::cmp::min(coordinates.0, limit.0 - 1),
-        std::cmp::min(coordinates.1, limit.1 - 1),
+        cmp::min(coordinates.0, limit.0 - 1),
+        cmp::min(coordinates.1, limit.1 - 1),
     )
 }
 
 pub fn get_number_of_tiles_in_texture(texture: &Texture, tile_size: u32) -> u32 {
-    let TextureQuery { width, height, .. } = texture.query();
+    let (width, height) = get_texture_size(texture);
     width / tile_size * height / tile_size
 }
 

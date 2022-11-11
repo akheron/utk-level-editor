@@ -1,5 +1,4 @@
-use sdl2::render::Texture;
-
+use crate::render::Texture;
 use crate::{Context, Renderer};
 
 pub struct EditorTextures<'a> {

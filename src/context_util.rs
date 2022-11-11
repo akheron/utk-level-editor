@@ -1,7 +1,7 @@
 use crate::event::WindowEvent;
 use crate::fn2::FN2;
+use crate::render::Texture;
 use crate::Context;
-use crate::Texture;
 use crate::Textures;
 use crate::{crates, Renderer};
 

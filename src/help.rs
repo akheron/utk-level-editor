@@ -1,7 +1,6 @@
-use sdl2::render::Texture;
-
 use crate::context_util::resize;
 use crate::event::Event;
+use crate::render::Texture;
 use crate::Mode;
 use crate::{Context, Renderer};
 

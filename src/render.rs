@@ -3,11 +3,12 @@ use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::rect::Point;
 use sdl2::rect::Rect;
 use sdl2::render::TextureQuery;
-use sdl2::render::{BlendMode, Texture};
+use sdl2::render::{BlendMode, Texture as SdlTexture};
 use sdl2::render::{Canvas, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::time::Duration;
 
 use crate::crates::CrateClass;
@@ -45,6 +46,15 @@ fn get_sdl_color(color: &RendererColor) -> Color {
     }
 }
 
+pub struct Texture<'a>(SdlTexture<'a>);
+
+impl<'a> Deref for Texture<'a> {
+    type Target = SdlTexture<'a>;
+    fn deref(&self) -> &SdlTexture<'a> {
+        &self.0
+    }
+}
+
 pub struct Renderer {
     canvas: RefCell<Canvas<Window>>,
     texture_creator: TextureCreator<WindowContext>,
@@ -61,7 +71,7 @@ impl Renderer {
     }
 
     pub fn load_texture(&self, path: &str) -> Texture {
-        self.texture_creator.load_texture(path).unwrap()
+        Texture(self.texture_creator.load_texture(path).unwrap())
     }
 
     pub fn clear_screen(&self) {
@@ -327,7 +337,7 @@ impl Renderer {
 
     pub fn create_text_texture(&self, font: &FN2, text: &str) -> Texture {
         let (width, height) = get_text_texture_size(font, text);
-        let mut texture = self
+        let mut sdl_texture = self
             .texture_creator
             .create_texture_target(
                 PixelFormatEnum::RGBA8888,
@@ -344,10 +354,10 @@ impl Renderer {
             )
             .map_err(|e| e.to_string())
             .unwrap();
-        texture.set_blend_mode(BlendMode::Blend);
+        sdl_texture.set_blend_mode(BlendMode::Blend);
 
         self.canvas_mut()
-            .with_texture_canvas(&mut texture, |texture_canvas| {
+            .with_texture_canvas(&mut sdl_texture, |texture_canvas| {
                 texture_canvas.set_draw_color(Color::RGB(0, 0, 0));
                 self.render_text_to_canvas(
                     texture_canvas,
@@ -362,7 +372,7 @@ impl Renderer {
             .map_err(|e| e.to_string())
             .unwrap();
 
-        texture
+        Texture(sdl_texture)
     }
 
     fn render_text_to_canvas(

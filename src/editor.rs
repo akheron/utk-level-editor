@@ -1,6 +1,3 @@
-use sdl2::render::Texture;
-use sdl2::render::TextureQuery;
-
 use crate::context_util::resize;
 use crate::crates::{get_crates, CrateClass, Crates};
 use crate::editor_textures::EditorTextures;
@@ -8,6 +5,7 @@ use crate::event::{Event, Keycode, MouseButton};
 use crate::level::StaticCrate;
 use crate::level::StaticCrateType;
 use crate::level::Steam;
+use crate::render::{get_texture_size, Texture};
 use crate::types::GameType;
 use crate::util::*;
 use crate::Context;
@@ -672,7 +670,7 @@ impl<'a> EditorState<'a> {
 
         if !input_field.is_empty() {
             let input_text_texture = renderer.create_text_texture(&context.font, input_field);
-            let TextureQuery { width, .. } = instruction_texture.query();
+            let (width, _) = get_texture_size(instruction_texture);
             renderer.render_text_texture(
                 &input_text_texture,
                 prompt_position.0 + width * render::TEXT_SIZE_MULTIPLIER + 10,

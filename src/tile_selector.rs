@@ -1,12 +1,10 @@
-use sdl2::render::Texture;
-
 use crate::context_util::resize;
 use crate::event::{Event, Keycode, MouseButton};
+use crate::render::{RendererColor, Texture};
 use crate::types::*;
 use crate::util::*;
 use crate::Context;
 use crate::{render, Renderer};
-use crate::render::RendererColor;
 
 pub struct TileSelectState<'a> {
     renderer: &'a Renderer,

@@ -1,7 +1,6 @@
-use sdl2::render::Texture;
-
 use crate::context_util::resize;
 use crate::event::{Event, Keycode};
+use crate::render::Texture;
 use crate::types::*;
 use crate::Context;
 use crate::{get_bottom_text_position, Renderer};
