@@ -458,6 +458,11 @@ fn get_text_texture_size(font: &FN2, text: &str) -> (u32, u32) {
     (width, height)
 }
 
+fn get_block(id: u32, width: u32, tile_size: u32) -> Rect {
+    let (x, y) = get_tile_coordinates(id, width, tile_size);
+    Rect::new(x as i32, y as i32, tile_size, tile_size)
+}
+
 fn char_to_index(c: char) -> usize {
     (c as u8).into()
 }

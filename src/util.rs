@@ -1,4 +1,3 @@
-use sdl2::rect::Rect;
 use sdl2::render::{Texture, TextureQuery};
 use std::cmp;
 
@@ -15,11 +14,6 @@ pub fn get_tile_coordinates(id: u32, width: u32, tile_size: u32) -> (u32, u32) {
     let x = id * tile_size % width;
     let y = id * tile_size / width * tile_size;
     (x, y)
-}
-
-pub fn get_block(id: u32, width: u32, tile_size: u32) -> Rect {
-    let (x, y) = get_tile_coordinates(id, width, tile_size);
-    Rect::new(x as i32, y as i32, tile_size, tile_size)
 }
 
 pub fn get_logical_coordinates(
