@@ -1,4 +1,3 @@
-use sdl2::pixels::Color;
 use sdl2::render::Texture;
 
 use crate::context_util::resize;
@@ -62,7 +61,7 @@ impl<'a> HelpState<'a> {
     }
 
     pub fn render(&self, context: &Context<'a>) {
-        self.renderer.clear_screen(Color::from((0, 0, 0)));
+        self.renderer.clear_screen();
         let mut position = 6;
         for line_texture in &self.line_textures {
             self.renderer.render_text_texture(

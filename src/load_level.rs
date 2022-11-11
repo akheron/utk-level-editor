@@ -1,4 +1,3 @@
-use sdl2::pixels::Color;
 use sdl2::render::Texture;
 use std::fs;
 
@@ -101,7 +100,7 @@ impl<'a> LoadLevelState<'a> {
     }
 
     pub fn render(&mut self, context: &Context<'a>) {
-        self.renderer.clear_screen(Color::from((0, 0, 0)));
+        self.renderer.clear_screen();
         let text_position = (40, 60);
         let render_size = context.graphics.get_render_size();
         self.renderer.render_text_texture_coordinates(

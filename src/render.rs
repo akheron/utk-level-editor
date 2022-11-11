@@ -24,20 +24,24 @@ use crate::Textures;
 pub const TEXT_SIZE_MULTIPLIER: u32 = 2;
 
 pub enum RendererColor {
+    Black,
     White,
     Red,
     Blue,
     LightBlue,
     LightGreen,
+    LightGrey,
 }
 
 fn get_sdl_color(color: &RendererColor) -> Color {
     match &color {
+        RendererColor::Black => Color::from((0, 0, 0)),
         RendererColor::White => Color::from((255, 255, 255)),
         RendererColor::Red => Color::from((255, 0, 0)),
         RendererColor::Blue => Color::from((0, 0, 255)),
         RendererColor::LightBlue => Color::from((100, 100, 255)),
         RendererColor::LightGreen => Color::from((100, 255, 100)),
+        RendererColor::LightGrey => Color::from((200, 200, 200)),
     }
 }
 
@@ -60,8 +64,9 @@ impl Renderer {
         self.texture_creator.load_texture(path).unwrap()
     }
 
-    pub fn clear_screen(&self, color: Color) {
-        self.canvas_mut().set_draw_color(color);
+    pub fn clear_screen(&self) {
+        self.canvas_mut()
+            .set_draw_color(get_sdl_color(&RendererColor::Black));
         self.canvas_mut().clear();
     }
 
@@ -108,10 +113,11 @@ impl Renderer {
             .unwrap();
     }
 
-    pub fn fill_and_render_texture(&self, color: Color, texture: &Texture, dst: Rect) {
-        self.canvas_mut().set_draw_color(color);
-        self.canvas_mut().fill_rect(dst).unwrap();
-        self.canvas_mut().copy(texture, None, dst).unwrap();
+    pub fn fill_and_render_texture(&self, color: RendererColor, texture: &Texture, dst: Rect) {
+        let mut canvas = self.canvas_mut();
+        canvas.set_draw_color(get_sdl_color(&color));
+        canvas.fill_rect(dst).unwrap();
+        canvas.copy(texture, None, dst).unwrap();
     }
 
     pub fn render_text_texture(

@@ -1,4 +1,3 @@
-use sdl2::pixels::Color;
 use sdl2::render::Texture;
 
 use crate::context_util::resize;
@@ -116,7 +115,7 @@ impl<'a> RandomItemEditorState<'a> {
     }
 
     pub fn render(&mut self, context: &Context<'a>, game_type: GameType) {
-        self.renderer.clear_screen(Color::from((0, 0, 0)));
+        self.renderer.clear_screen();
         let render_size = context.graphics.get_render_size();
 
         self.renderer.render_text_texture_coordinates(

@@ -1,4 +1,3 @@
-use sdl2::pixels::Color;
 use sdl2::render::Texture;
 
 use crate::context_util::resize;
@@ -7,6 +6,7 @@ use crate::types::*;
 use crate::util::*;
 use crate::Context;
 use crate::{render, Renderer};
+use crate::render::RendererColor;
 
 pub struct TileSelectState<'a> {
     renderer: &'a Renderer,
@@ -103,7 +103,7 @@ impl<'a> TileSelectState<'a> {
     }
 
     pub fn render(&self, context: &Context<'a>) {
-        self.renderer.clear_screen(Color::from((0, 0, 0)));
+        self.renderer.clear_screen();
         let texture_selected = match context.texture_type_scrolled {
             TextureType::Floor => &context.textures.floor,
             TextureType::Walls => &context.textures.walls,
@@ -112,7 +112,7 @@ impl<'a> TileSelectState<'a> {
         let render_multiplier = context.graphics.render_multiplier;
         let dst = render::get_texture_rect(texture_selected, render_multiplier);
         self.renderer
-            .fill_and_render_texture(Color::from((200, 200, 200)), texture_selected, dst);
+            .fill_and_render_texture(RendererColor::LightGrey, texture_selected, dst);
         let (texture_width, texture_height) =
             render::get_texture_render_size(texture_selected, render_multiplier);
         let highlighted_id = get_tile_id_from_coordinates(

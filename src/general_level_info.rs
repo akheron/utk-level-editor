@@ -1,4 +1,3 @@
-use sdl2::pixels::Color;
 use sdl2::render::Texture;
 
 use crate::context_util::resize;
@@ -175,7 +174,7 @@ impl<'a> GeneralLevelInfoState<'a> {
         // TODO: Call when GeneralLevelInfo is entered instead of every frame
         self.enable_text_editing_if_needed(context);
 
-        self.renderer.clear_screen(Color::from((0, 0, 0)));
+        self.renderer.clear_screen();
         let mut option_position = (40, 20);
         let mut value_position = (300, option_position.1);
         let render_size = context.graphics.get_render_size();
