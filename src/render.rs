@@ -9,7 +9,6 @@ use sdl2::video::{Window, WindowContext};
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::time::Duration;
 
 use crate::crates::CrateClass;
 use crate::fn2::FN2;
@@ -330,9 +329,8 @@ impl Renderer {
         }
     }
 
-    pub fn render_and_wait(&self) {
+    pub fn present(&self) {
         self.canvas_mut().present();
-        std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
 
     pub fn create_text_texture(&self, font: &FN2, text: &str) -> Texture {
@@ -400,7 +398,7 @@ impl Renderer {
         }
     }
 
-    pub fn render_character(
+    fn render_character(
         &self,
         canvas: &mut Canvas<Window>,
         characters: &FN2,

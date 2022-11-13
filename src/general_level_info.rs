@@ -215,7 +215,6 @@ impl<'a> GeneralLevelInfoState<'a> {
             render_size,
             None,
         );
-        self.renderer.render_and_wait();
     }
 
     fn enable_text_editing_if_needed(&self, context: &Context) {

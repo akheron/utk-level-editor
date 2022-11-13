@@ -18,6 +18,7 @@ use crate::render::Renderer;
 use crate::tile_selector::TileSelectState;
 use crate::types::*;
 use crate::util::*;
+use std::time::Duration;
 
 mod context;
 mod context_util;
@@ -88,7 +89,9 @@ pub fn main() {
                 }
             }
         }
-        state.render(&context)
+        state.render(&context);
+        renderer.present();
+        std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
 }
 

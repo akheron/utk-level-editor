@@ -175,6 +175,5 @@ impl<'a> RandomItemEditorState<'a> {
             render_size,
             None,
         );
-        self.renderer.render_and_wait();
     }
 }

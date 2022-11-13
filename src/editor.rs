@@ -647,7 +647,6 @@ impl<'a> EditorState<'a> {
                 None,
             );
         }
-        self.renderer.render_and_wait();
     }
 
     fn render_input_prompt(

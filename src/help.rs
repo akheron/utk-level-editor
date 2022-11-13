@@ -72,6 +72,5 @@ impl<'a> HelpState<'a> {
             );
             position += 22;
         }
-        self.renderer.render_and_wait();
     }
 }

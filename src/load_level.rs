@@ -134,6 +134,5 @@ impl<'a> LoadLevelState<'a> {
             render_size,
             None,
         );
-        self.renderer.render_and_wait();
     }
 }

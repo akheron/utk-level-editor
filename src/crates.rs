@@ -16,7 +16,7 @@ impl CrateClass {
     }
 }
 
-pub type Crates<'a> = [std::vec::Vec<&'a str>; 3];
+pub type Crates<'a> = [Vec<&'a str>; 3];
 
 pub fn get_crates<'a>() -> Crates<'a> {
     [

@@ -157,6 +157,5 @@ impl<'a> TileSelectState<'a> {
             context.graphics.get_render_size(),
             None,
         );
-        self.renderer.render_and_wait();
     }
 }
