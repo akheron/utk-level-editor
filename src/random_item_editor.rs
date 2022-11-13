@@ -1,12 +1,16 @@
 use crate::context_util::resize;
 use crate::event::{Event, Keycode};
 use crate::level::Level;
-use crate::render::Texture;
+use crate::render::Renderer;
 use crate::types::*;
 use crate::util::{get_bottom_text_position, TITLE_POSITION};
-use crate::{Context, Renderer};
+use crate::Context;
 
-fn load_text<'a>(renderer: &'a Renderer, context: &Context, text: &str) -> Texture<'a> {
+fn load_text<'a, R: Renderer<'a>>(
+    renderer: &'a R,
+    context: &Context<'a, R>,
+    text: &str,
+) -> R::Texture {
     renderer.create_text_texture(&context.font, text)
 }
 
@@ -44,16 +48,16 @@ fn set_value(level: &mut Level, game_type: &GameType, index: usize, value: u32) 
     }
 }
 
-pub struct RandomItemEditorState<'a> {
-    renderer: &'a Renderer,
-    normal_game_instruction_text: Texture<'a>,
-    deathmatch_instruction_text: Texture<'a>,
-    esc_instruction_text: Texture<'a>,
+pub struct RandomItemEditorState<'a, R: Renderer<'a>> {
+    renderer: &'a R,
+    normal_game_instruction_text: R::Texture,
+    deathmatch_instruction_text: R::Texture,
+    esc_instruction_text: R::Texture,
     selected: usize,
 }
 
-impl<'a> RandomItemEditorState<'a> {
-    pub fn new(renderer: &'a Renderer, context: &Context<'a>) -> Self {
+impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
+    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
         let normal_game_instruction_text = load_text(renderer, context, "NORMAL GAME CRATES");
         let deathmatch_instruction_text = load_text(renderer, context, "DEATHMATCH CRATES");
         let esc_instruction_text = load_text(renderer, context, "press ESC to exit");
@@ -69,7 +73,7 @@ impl<'a> RandomItemEditorState<'a> {
 
     pub fn handle_event(
         &mut self,
-        context: &mut Context<'a>,
+        context: &mut Context<'a, R>,
         game_type: GameType,
         event: Event,
     ) -> Mode {
@@ -113,7 +117,7 @@ impl<'a> RandomItemEditorState<'a> {
         Mode::RandomItemEditor(game_type)
     }
 
-    pub fn render(&mut self, context: &Context<'a>, game_type: GameType) {
+    pub fn render(&mut self, context: &Context<'a, R>, game_type: GameType) {
         self.renderer.clear_screen();
         let render_size = context.graphics.get_render_size();
 

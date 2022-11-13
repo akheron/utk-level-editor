@@ -14,7 +14,7 @@ use crate::help::HelpState;
 use crate::level::Level;
 use crate::load_level::LoadLevelState;
 use crate::random_item_editor::RandomItemEditorState;
-use crate::render::Renderer;
+use crate::render::{Renderer, SdlRenderer};
 use crate::tile_selector::TileSelectState;
 use crate::types::*;
 use crate::util::*;
@@ -54,7 +54,7 @@ pub fn main() {
         .build()
         .unwrap();
     let mut event_pump = sdl.event_pump().unwrap();
-    let renderer = Renderer::new(window);
+    let renderer = SdlRenderer::new(window);
     let font = {
         let mut font_data = Vec::new();
         File::open("assets/TETRIS.FN2")
@@ -95,18 +95,18 @@ pub fn main() {
     }
 }
 
-struct State<'a> {
+struct State<'a, R: Renderer<'a>> {
     mode: Mode,
-    editor: EditorState<'a>,
-    tile_select: TileSelectState<'a>,
-    help: HelpState<'a>,
-    general_level_info: GeneralLevelInfoState<'a>,
-    random_item_editor: RandomItemEditorState<'a>,
-    load_level: LoadLevelState<'a>,
+    editor: EditorState<'a, R>,
+    tile_select: TileSelectState<'a, R>,
+    help: HelpState<'a, R>,
+    general_level_info: GeneralLevelInfoState<'a, R>,
+    random_item_editor: RandomItemEditorState<'a, R>,
+    load_level: LoadLevelState<'a, R>,
 }
 
-impl<'a> State<'a> {
-    pub fn new(renderer: &'a Renderer, context: &Context<'a>) -> Self {
+impl<'a, R: Renderer<'a>> State<'a, R> {
+    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
         Self {
             mode: Mode::Editor,
             editor: EditorState::new(renderer, context),
@@ -118,7 +118,7 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn handle_event(&mut self, context: &mut Context<'a>, event: Event) -> RunState {
+    pub fn handle_event(&mut self, context: &mut Context<'a, R>, event: Event) -> RunState {
         self.mode = match self.mode {
             Mode::Editor => self.editor.handle_event(context, event),
             Mode::TileSelect => self.tile_select.handle_event(context, event),
@@ -136,7 +136,7 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn render(&mut self, context: &Context<'a>) {
+    pub fn render(&mut self, context: &Context<'a, R>) {
         match self.mode {
             Mode::Editor => self.editor.render(context),
             Mode::TileSelect => self.tile_select.render(context),

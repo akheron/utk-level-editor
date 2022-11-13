@@ -1,6 +1,6 @@
 use std::cmp;
 
-use crate::render::{get_texture_size, Texture};
+use crate::render::Renderer;
 use crate::types::Trigonometry;
 use crate::Graphics;
 
@@ -153,8 +153,11 @@ pub fn limit_coordinates(coordinates: &(u32, u32), limit: &(u32, u32)) -> (u32, 
     )
 }
 
-pub fn get_number_of_tiles_in_texture(texture: &Texture, tile_size: u32) -> u32 {
-    let (width, height) = get_texture_size(texture);
+pub fn get_number_of_tiles_in_texture<'a, R: Renderer<'a>>(
+    texture: &R::Texture,
+    tile_size: u32,
+) -> u32 {
+    let (width, height) = R::get_texture_size(texture);
     width / tile_size * height / tile_size
 }
 

@@ -1,35 +1,35 @@
-use crate::render::Texture;
-use crate::{Context, Renderer};
+use crate::render::Renderer;
+use crate::Context;
 
-pub struct EditorTextures<'a> {
-    pub p1_text_texture: Texture<'a>,
-    pub p2_text_texture: Texture<'a>,
-    pub p1_set_text_texture: Texture<'a>,
-    pub p2_set_text_texture: Texture<'a>,
-    pub help_text_texture: Texture<'a>,
-    pub create_new_level_text_texture: Texture<'a>,
-    pub wanna_quit_text_texture: Texture<'a>,
-    pub save_level_text_texture: Texture<'a>,
-    pub filename_text_texture: Texture<'a>,
-    pub press_y_text_texture: Texture<'a>,
-    pub new_level_x_size_text_texture: Texture<'a>,
-    pub new_level_y_size_text_texture: Texture<'a>,
-    pub spotlight_place_text_texture: Texture<'a>,
-    pub spotlight_delete_text_texture: Texture<'a>,
-    pub spotlight_instructions_text_texture: Texture<'a>,
-    pub steam_place_text_texture: Texture<'a>,
-    pub steam_delete_text_texture: Texture<'a>,
-    pub steam_instructions_text_texture: Texture<'a>,
-    pub create_shadows_enabled_instructions_text_texture: Texture<'a>,
-    pub create_shadows_disabled_instructions_text_texture: Texture<'a>,
-    pub place_normal_crate_text_texture: Texture<'a>,
-    pub place_deathmatch_create_text_texture: Texture<'a>,
-    pub insert_crate_text_texture: Texture<'a>,
-    pub delete_crate_text_texture: Texture<'a>,
+pub struct EditorTextures<'a, R: Renderer<'a>> {
+    pub p1_text_texture: R::Texture,
+    pub p2_text_texture: R::Texture,
+    pub p1_set_text_texture: R::Texture,
+    pub p2_set_text_texture: R::Texture,
+    pub help_text_texture: R::Texture,
+    pub create_new_level_text_texture: R::Texture,
+    pub wanna_quit_text_texture: R::Texture,
+    pub save_level_text_texture: R::Texture,
+    pub filename_text_texture: R::Texture,
+    pub press_y_text_texture: R::Texture,
+    pub new_level_x_size_text_texture: R::Texture,
+    pub new_level_y_size_text_texture: R::Texture,
+    pub spotlight_place_text_texture: R::Texture,
+    pub spotlight_delete_text_texture: R::Texture,
+    pub spotlight_instructions_text_texture: R::Texture,
+    pub steam_place_text_texture: R::Texture,
+    pub steam_delete_text_texture: R::Texture,
+    pub steam_instructions_text_texture: R::Texture,
+    pub create_shadows_enabled_instructions_text_texture: R::Texture,
+    pub create_shadows_disabled_instructions_text_texture: R::Texture,
+    pub place_normal_crate_text_texture: R::Texture,
+    pub place_deathmatch_create_text_texture: R::Texture,
+    pub insert_crate_text_texture: R::Texture,
+    pub delete_crate_text_texture: R::Texture,
 }
 
-impl EditorTextures<'_> {
-    pub fn new<'a>(renderer: &'a Renderer, context: &Context) -> EditorTextures<'a> {
+impl<'a, R: Renderer<'a>> EditorTextures<'a, R> {
+    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> EditorTextures<'a, R> {
         EditorTextures {
             p1_text_texture: renderer.create_text_texture(&context.font, "PL1"),
             p2_text_texture: renderer.create_text_texture(&context.font, "PL2"),

@@ -1,8 +1,8 @@
 use crate::context_util::resize;
 use crate::event::Event;
-use crate::render::Texture;
+use crate::render::Renderer;
+use crate::Context;
 use crate::Mode;
-use crate::{Context, Renderer};
 
 const LINES: [&str; 19] = [
     "ESC - quit",
@@ -26,13 +26,13 @@ const LINES: [&str; 19] = [
     "+/- adjust rendering size",
 ];
 
-pub struct HelpState<'a> {
-    renderer: &'a Renderer,
-    line_textures: Vec<Texture<'a>>,
+pub struct HelpState<'a, R: Renderer<'a>> {
+    renderer: &'a R,
+    line_textures: Vec<R::Texture>,
 }
 
-impl<'a> HelpState<'a> {
-    pub fn new(renderer: &'a Renderer, context: &Context<'a>) -> Self {
+impl<'a, R: Renderer<'a>> HelpState<'a, R> {
+    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
         let line_textures = LINES
             .iter()
             .map(|text| renderer.create_text_texture(&context.font, text))
@@ -44,7 +44,7 @@ impl<'a> HelpState<'a> {
         }
     }
 
-    pub fn handle_event(&mut self, context: &mut Context<'a>, event: Event) -> Mode {
+    pub fn handle_event(&mut self, context: &mut Context<'a, R>, event: Event) -> Mode {
         match event {
             Event::Quit => return Mode::Editor,
             Event::KeyDown { .. } => {
@@ -59,7 +59,7 @@ impl<'a> HelpState<'a> {
         Mode::Help
     }
 
-    pub fn render(&self, context: &Context<'a>) {
+    pub fn render(&self, context: &Context<'a, R>) {
         self.renderer.clear_screen();
         let mut position = 6;
         for line_texture in &self.line_textures {

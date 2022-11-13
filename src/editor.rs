@@ -5,7 +5,8 @@ use crate::event::{Event, Keycode, MouseButton};
 use crate::level::StaticCrate;
 use crate::level::StaticCrateType;
 use crate::level::Steam;
-use crate::render::{get_texture_size, Texture};
+use crate::render;
+use crate::render::Renderer;
 use crate::types::GameType;
 use crate::util::*;
 use crate::Context;
@@ -13,7 +14,6 @@ use crate::Graphics;
 use crate::Level;
 use crate::Mode;
 use crate::TextureType;
-use crate::{render, Renderer};
 
 #[derive(PartialEq)]
 enum NewLevelState {
@@ -59,9 +59,9 @@ enum InsertType {
     DMCrate(InsertState),
 }
 
-pub struct EditorState<'a> {
-    renderer: &'a Renderer,
-    textures: EditorTextures<'a>,
+pub struct EditorState<'a, R: Renderer<'a>> {
+    renderer: &'a R,
+    textures: EditorTextures<'a, R>,
     set_position: u8,
     mouse_left_click: Option<(u32, u32)>,
     mouse_right_click: bool,
@@ -75,8 +75,8 @@ pub struct EditorState<'a> {
 
 static DEFAULT_LEVEL_SIZE: (u32, u32) = (16, 12);
 
-impl<'a> EditorState<'a> {
-    pub fn new(renderer: &'a Renderer, context: &Context<'a>) -> Self {
+impl<'a, R: Renderer<'a>> EditorState<'a, R> {
+    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
         let textures = EditorTextures::new(renderer, context);
         EditorState {
             renderer,
@@ -93,7 +93,7 @@ impl<'a> EditorState<'a> {
         }
     }
 
-    pub fn handle_event(&mut self, context: &mut Context<'a>, event: Event) -> Mode {
+    pub fn handle_event(&mut self, context: &mut Context<'a, R>, event: Event) -> Mode {
         match event {
             Event::Quit
             | Event::KeyDown {
@@ -533,7 +533,7 @@ impl<'a> EditorState<'a> {
         Mode::Editor
     }
 
-    pub fn render(&mut self, context: &Context<'a>) {
+    pub fn render(&mut self, context: &Context<'a, R>) {
         self.renderer.render_level(
             &context.graphics,
             &context.level,
@@ -651,11 +651,11 @@ impl<'a> EditorState<'a> {
 
     fn render_input_prompt(
         &self,
-        renderer: &Renderer,
-        context: &Context,
+        renderer: &'a R,
+        context: &Context<'a, R>,
         prompt_position: (u32, u32),
         prompt_line_spacing: u32,
-        instruction_texture: &Texture,
+        instruction_texture: &R::Texture,
         input_field: &str,
     ) {
         let render_size = context.graphics.get_render_size();
@@ -669,7 +669,7 @@ impl<'a> EditorState<'a> {
 
         if !input_field.is_empty() {
             let input_text_texture = renderer.create_text_texture(&context.font, input_field);
-            let (width, _) = get_texture_size(instruction_texture);
+            let (width, _) = R::get_texture_size(instruction_texture);
             renderer.render_text_texture(
                 &input_text_texture,
                 prompt_position.0 + width * render::TEXT_SIZE_MULTIPLIER + 10,
@@ -680,7 +680,7 @@ impl<'a> EditorState<'a> {
         }
     }
 
-    fn render_prompt_if_needed(&self, renderer: &Renderer, context: &Context) {
+    fn render_prompt_if_needed(&self, renderer: &'a R, context: &Context<'a, R>) {
         if self.prompt != PromptType::None {
             let prompt_position = (context.graphics.resolution_x / 2 - 100, 200);
             let prompt_line_spacing = 30;
@@ -765,7 +765,7 @@ impl<'a> EditorState<'a> {
         }
     }
 
-    fn handle_mouse_left_down(&mut self, context: &mut Context) {
+    fn handle_mouse_left_down(&mut self, context: &mut Context<'a, R>) {
         if self.drag_tiles {
             return;
         }
@@ -852,7 +852,7 @@ impl<'a> EditorState<'a> {
         }
     }
 
-    fn handle_mouse_right_down(&self, context: &mut Context) {
+    fn handle_mouse_right_down(&self, context: &mut Context<'a, R>) {
         let pointed_tile = get_tile_id_from_coordinates(
             &context.graphics,
             &limit_coordinates(

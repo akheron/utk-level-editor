@@ -1,20 +1,19 @@
 use crate::context_util::resize;
 use crate::event::{Event, Keycode, MouseButton};
-use crate::render::{RendererColor, Texture};
+use crate::render::{get_texture_rect, get_texture_render_size, Renderer, RendererColor};
 use crate::types::*;
 use crate::util::*;
 use crate::Context;
-use crate::{render, Renderer};
 
-pub struct TileSelectState<'a> {
-    renderer: &'a Renderer,
-    floor_blocks_text_texture: Texture<'a>,
-    wall_blocks_text_texture: Texture<'a>,
-    shadow_blocks_text_texture: Texture<'a>,
+pub struct TileSelectState<'a, R: Renderer<'a>> {
+    renderer: &'a R,
+    floor_blocks_text_texture: R::Texture,
+    wall_blocks_text_texture: R::Texture,
+    shadow_blocks_text_texture: R::Texture,
 }
 
-impl<'a> TileSelectState<'a> {
-    pub fn new(renderer: &'a Renderer, context: &Context<'a>) -> Self {
+impl<'a, R: Renderer<'a>> TileSelectState<'a, R> {
+    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
         TileSelectState {
             renderer,
             floor_blocks_text_texture: renderer
@@ -28,7 +27,7 @@ impl<'a> TileSelectState<'a> {
         }
     }
 
-    pub fn handle_event(&self, context: &mut Context<'a>, event: Event) -> Mode {
+    pub fn handle_event(&self, context: &mut Context<'a, R>, event: Event) -> Mode {
         match event {
             Event::Quit
             | Event::KeyDown {
@@ -77,7 +76,7 @@ impl<'a> TileSelectState<'a> {
                     TextureType::Walls => &context.textures.walls,
                     TextureType::Shadow => &context.textures.shadows,
                 };
-                let (texture_width, texture_height) = render::get_texture_render_size(
+                let (texture_width, texture_height) = get_texture_render_size::<R>(
                     texture_selected,
                     context.graphics.render_multiplier,
                 );
@@ -88,7 +87,10 @@ impl<'a> TileSelectState<'a> {
                     None,
                 );
                 if clicked_tile_id
-                    < get_number_of_tiles_in_texture(texture_selected, context.graphics.tile_size)
+                    < get_number_of_tiles_in_texture::<R>(
+                        texture_selected,
+                        context.graphics.tile_size,
+                    )
                 {
                     context.selected_tile_id = clicked_tile_id;
                     context.texture_type_selected = context.texture_type_scrolled;
@@ -100,7 +102,7 @@ impl<'a> TileSelectState<'a> {
         Mode::TileSelect
     }
 
-    pub fn render(&self, context: &Context<'a>) {
+    pub fn render(&self, context: &Context<'a, R>) {
         self.renderer.clear_screen();
         let texture_selected = match context.texture_type_scrolled {
             TextureType::Floor => &context.textures.floor,
@@ -108,11 +110,11 @@ impl<'a> TileSelectState<'a> {
             TextureType::Shadow => &context.textures.shadows,
         };
         let render_multiplier = context.graphics.render_multiplier;
-        let dst = render::get_texture_rect(texture_selected, render_multiplier);
+        let dst = get_texture_rect::<R>(texture_selected, render_multiplier);
         self.renderer
             .fill_and_render_texture(RendererColor::LightGrey, texture_selected, dst);
         let (texture_width, texture_height) =
-            render::get_texture_render_size(texture_selected, render_multiplier);
+            get_texture_render_size::<R>(texture_selected, render_multiplier);
         let highlighted_id = get_tile_id_from_coordinates(
             &context.graphics,
             &limit_coordinates(&context.mouse, &(texture_width, texture_height)),
@@ -122,7 +124,7 @@ impl<'a> TileSelectState<'a> {
         self.renderer.highlight_selected_tile(
             &context.graphics,
             highlighted_id,
-            &render::RendererColor::White,
+            &RendererColor::White,
         );
         if context.texture_type_selected == context.texture_type_scrolled {
             let coordinates = get_tile_coordinates(
@@ -143,7 +145,7 @@ impl<'a> TileSelectState<'a> {
             self.renderer.highlight_selected_tile(
                 &context.graphics,
                 screen_tile_id,
-                &render::RendererColor::Red,
+                &RendererColor::Red,
             );
         }
         let active_text = match context.texture_type_scrolled {

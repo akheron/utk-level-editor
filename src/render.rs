@@ -8,7 +8,6 @@ use sdl2::render::{Canvas, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
-use std::ops::Deref;
 
 use crate::crates::CrateClass;
 use crate::fn2::FN2;
@@ -45,21 +44,47 @@ fn get_sdl_color(color: &RendererColor) -> Color {
     }
 }
 
-pub struct Texture<'a>(SdlTexture<'a>);
+pub trait Renderer<'a> {
+    type Texture;
 
-impl<'a> Deref for Texture<'a> {
-    type Target = SdlTexture<'a>;
-    fn deref(&self) -> &SdlTexture<'a> {
-        &self.0
-    }
+    fn load_texture(&'a self, path: &str) -> Self::Texture;
+    fn clear_screen(&self);
+    fn highlight_selected_tile(&self, graphics: &Graphics, id: u32, color: &RendererColor);
+    fn draw_line(&self, x0: u32, y0: u32, x1: u32, y1: u32);
+    fn fill_and_render_texture(&self, color: RendererColor, texture: &Self::Texture, dst: Rect);
+    fn render_text_texture(
+        &self,
+        texture: &Self::Texture,
+        x: u32,
+        y: u32,
+        render_size: u32,
+        scroll: Option<(u32, u32)>,
+    );
+    fn render_text_texture_coordinates(
+        &self,
+        texture: &Self::Texture,
+        coordinates: (u32, u32),
+        render_size: u32,
+        scroll: Option<(u32, u32)>,
+    );
+    fn render_level(
+        &self,
+        graphics: &Graphics,
+        level: &Level,
+        textures: &Textures<Self::Texture>,
+        trigonometry: &Trigonometry,
+    );
+    fn create_text_texture(&'a self, font: &FN2, text: &str) -> Self::Texture;
+    fn get_texture_size(texture: &Self::Texture) -> (u32, u32);
+    fn window_size(&self) -> (u32, u32);
 }
 
-pub struct Renderer {
+pub struct SdlRenderer {
     canvas: RefCell<Canvas<Window>>,
     texture_creator: TextureCreator<WindowContext>,
 }
 
-impl Renderer {
+impl SdlRenderer {
     pub fn new(window: Window) -> Self {
         let canvas = window.into_canvas().build().unwrap();
         let texture_creator = canvas.texture_creator();
@@ -67,96 +92,6 @@ impl Renderer {
             canvas: RefCell::new(canvas),
             texture_creator,
         }
-    }
-
-    pub fn load_texture(&self, path: &str) -> Texture {
-        Texture(self.texture_creator.load_texture(path).unwrap())
-    }
-
-    pub fn clear_screen(&self) {
-        self.canvas_mut()
-            .set_draw_color(get_sdl_color(&RendererColor::Black));
-        self.canvas_mut().clear();
-    }
-
-    pub fn highlight_selected_tile(&self, graphics: &Graphics, id: u32, color: &RendererColor) {
-        self.canvas_mut().set_draw_color(get_sdl_color(color));
-
-        let render_size = graphics.get_render_size();
-        let render_multiplier = graphics.render_multiplier;
-        let (x_logical, y_logical) = get_tile_coordinates(
-            id,
-            graphics.get_x_tiles_per_screen() * graphics.tile_size,
-            graphics.tile_size,
-        );
-        let x = x_logical * render_multiplier;
-        let y = y_logical * render_multiplier;
-
-        self.draw_line(x, y, x, y + render_size - 1);
-        self.draw_line(x, y, x + render_size - 1, y);
-        self.draw_line(
-            x + render_size - 1,
-            y,
-            x + render_size - 1,
-            y + render_size - 1,
-        );
-        self.draw_line(
-            x,
-            y + render_size - 1,
-            x + render_size - 1,
-            y + render_size - 1,
-        );
-    }
-
-    pub fn draw_line(&self, x0: u32, y0: u32, x1: u32, y1: u32) {
-        let x0_signed = x0 as i32;
-        let y0_signed = y0 as i32;
-        let x1_signed = x1 as i32;
-        let y1_signed = y1 as i32;
-
-        self.canvas_mut()
-            .draw_line(
-                Point::from((x0_signed, y0_signed)),
-                Point::from((x1_signed, y1_signed)),
-            )
-            .unwrap();
-    }
-
-    pub fn fill_and_render_texture(&self, color: RendererColor, texture: &Texture, dst: Rect) {
-        let mut canvas = self.canvas_mut();
-        canvas.set_draw_color(get_sdl_color(&color));
-        canvas.fill_rect(dst).unwrap();
-        canvas.copy(texture, None, dst).unwrap();
-    }
-
-    pub fn render_text_texture(
-        &self,
-        texture: &Texture,
-        x: u32,
-        y: u32,
-        render_size: u32,
-        scroll: Option<(u32, u32)>,
-    ) {
-        let TextureQuery { width, height, .. } = texture.query();
-        let scroll = scroll.unwrap_or((0, 0));
-        let dst = Rect::new(
-            x as i32 - (scroll.0 * render_size) as i32,
-            y as i32 - (scroll.1 * render_size) as i32,
-            width * TEXT_SIZE_MULTIPLIER,
-            height * TEXT_SIZE_MULTIPLIER,
-        );
-
-        self.canvas_mut().copy(texture, None, dst).unwrap();
-    }
-
-    pub fn render_text_texture_coordinates(
-        &self,
-        texture: &Texture,
-        coordinates: (u32, u32),
-        render_size: u32,
-        scroll: Option<(u32, u32)>,
-    ) {
-        self.render_text_texture(texture, coordinates.0, coordinates.1, render_size, scroll);
     }
 
     fn draw_circle(&self, x_center: i32, y_center: i32, radius: u32, color: &RendererColor) {
@@ -210,85 +145,11 @@ impl Renderer {
         }
     }
 
-    pub fn render_level(
-        &self,
-        graphics: &Graphics,
-        level: &Level,
-        textures: &Textures,
-        trigonometry: &Trigonometry,
-    ) {
-        self.canvas_mut().set_draw_color(Color::from((0, 0, 0)));
-        self.canvas_mut().clear();
-        let render_size = graphics.get_render_size();
-
-        for y in 0..std::cmp::min(level.tiles.len() as u32, graphics.get_y_tiles_per_screen()) {
-            for x in 0..std::cmp::min(
-                level.tiles[y as usize].len() as u32,
-                graphics.get_x_tiles_per_screen(),
-            ) {
-                let (x_index, y_index) = get_scroll_corrected_indexes(level.scroll, x, y);
-                if y_index >= level.tiles.len() || x_index >= level.tiles[y_index].len() {
-                    continue;
-                }
-                let texture = match level.tiles[y_index][x_index].texture_type {
-                    TextureType::Floor => &textures.floor,
-                    TextureType::Walls => &textures.walls,
-                    TextureType::Shadow => unreachable!(),
-                };
-                let (texture_width, _texture_height) = get_texture_size(texture);
-                let src = get_block(
-                    level.tiles[y_index][x_index].id,
-                    texture_width,
-                    graphics.tile_size,
-                );
-                let (x_absolute, y_absolute) =
-                    get_absolute_coordinates_from_logical(x, y, graphics.get_render_size());
-                let dst = Rect::new(x_absolute, y_absolute, render_size, render_size);
-                self.canvas_mut().copy(texture, src, dst).unwrap();
-                let (shadow_texture_width, _shadow_texture_height) =
-                    get_texture_size(&textures.shadows);
-                if level.tiles[y_index][x_index].shadow > 0 {
-                    let src = get_block(
-                        level.tiles[y_index][x_index].shadow - 1,
-                        shadow_texture_width,
-                        graphics.tile_size,
-                    );
-                    self.canvas_mut().copy(&textures.shadows, src, dst).unwrap();
-                }
-            }
-        }
-        for (coordinates, spotlight) in &level.spotlights {
-            let (x_screen, y_screen) =
-                get_screen_coordinates_from_level_coordinates(graphics, coordinates, &level.scroll);
-            self.draw_circle(
-                x_screen,
-                y_screen,
-                get_spotlight_render_radius(spotlight),
-                &RendererColor::Blue,
-            );
-        }
-        for (coordinates, steam) in &level.steams {
-            let (x_screen, y_screen) =
-                get_screen_coordinates_from_level_coordinates(graphics, coordinates, &level.scroll);
-            for x in 0..6 {
-                let multiplier = x as f32 * 6.0 * steam.range as f32;
-                self.draw_circle(
-                    x_screen + (trigonometry.sin[steam.angle as usize] * multiplier) as i32,
-                    y_screen + (trigonometry.cos[steam.angle as usize] * multiplier) as i32,
-                    get_steam_render_radius() + x * 2,
-                    &RendererColor::Red,
-                );
-            }
-        }
-
-        self.render_crates(graphics, &level.scroll, textures, &level.crates.staticc);
-    }
-
     fn render_crates(
         &self,
         graphics: &Graphics,
         scroll: &(u32, u32),
-        textures: &Textures,
+        textures: &Textures<SdlTexture>,
         crates: &HashMap<(u32, u32), StaticCrateType>,
     ) {
         for (coordinates, crate_item) in crates {
@@ -331,46 +192,6 @@ impl Renderer {
 
     pub fn present(&self) {
         self.canvas_mut().present();
-    }
-
-    pub fn create_text_texture(&self, font: &FN2, text: &str) -> Texture {
-        let (width, height) = get_text_texture_size(font, text);
-        let mut sdl_texture = self
-            .texture_creator
-            .create_texture_target(
-                PixelFormatEnum::RGBA8888,
-                if width > 0 {
-                    width + TEXT_SHADOW_PIXELS
-                } else {
-                    1
-                },
-                if height > 0 {
-                    height + TEXT_SHADOW_PIXELS
-                } else {
-                    1
-                },
-            )
-            .map_err(|e| e.to_string())
-            .unwrap();
-        sdl_texture.set_blend_mode(BlendMode::Blend);
-
-        self.canvas_mut()
-            .with_texture_canvas(&mut sdl_texture, |texture_canvas| {
-                texture_canvas.set_draw_color(Color::RGB(0, 0, 0));
-                self.render_text_to_canvas(
-                    texture_canvas,
-                    font,
-                    TEXT_SHADOW_PIXELS,
-                    TEXT_SHADOW_PIXELS,
-                    text,
-                );
-                texture_canvas.set_draw_color(Color::RGB(255, 0, 0));
-                self.render_text_to_canvas(texture_canvas, font, 0, 0, text);
-            })
-            .map_err(|e| e.to_string())
-            .unwrap();
-
-        Texture(sdl_texture)
     }
 
     fn render_text_to_canvas(
@@ -421,27 +242,238 @@ impl Renderer {
         character.width
     }
 
-    pub fn window_size(&self) -> (u32, u32) {
-        self.canvas_mut().window().size()
-    }
-
     fn canvas_mut(&self) -> RefMut<Canvas<Window>> {
         self.canvas.borrow_mut()
     }
 }
 
-pub fn get_texture_rect(texture: &Texture, render_multiplier: u32) -> Rect {
-    let (width, height) = get_texture_render_size(texture, render_multiplier);
+impl<'a> Renderer<'a> for SdlRenderer {
+    type Texture = SdlTexture<'a>;
+
+    fn load_texture(&'a self, path: &str) -> Self::Texture {
+        self.texture_creator.load_texture(path).unwrap()
+    }
+
+    fn clear_screen(&self) {
+        self.canvas_mut()
+            .set_draw_color(get_sdl_color(&RendererColor::Black));
+        self.canvas_mut().clear();
+    }
+
+    fn highlight_selected_tile(&self, graphics: &Graphics, id: u32, color: &RendererColor) {
+        self.canvas_mut().set_draw_color(get_sdl_color(color));
+
+        let render_size = graphics.get_render_size();
+        let render_multiplier = graphics.render_multiplier;
+        let (x_logical, y_logical) = get_tile_coordinates(
+            id,
+            graphics.get_x_tiles_per_screen() * graphics.tile_size,
+            graphics.tile_size,
+        );
+        let x = x_logical * render_multiplier;
+        let y = y_logical * render_multiplier;
+
+        self.draw_line(x, y, x, y + render_size - 1);
+        self.draw_line(x, y, x + render_size - 1, y);
+        self.draw_line(
+            x + render_size - 1,
+            y,
+            x + render_size - 1,
+            y + render_size - 1,
+        );
+        self.draw_line(
+            x,
+            y + render_size - 1,
+            x + render_size - 1,
+            y + render_size - 1,
+        );
+    }
+
+    fn draw_line(&self, x0: u32, y0: u32, x1: u32, y1: u32) {
+        let x0_signed = x0 as i32;
+        let y0_signed = y0 as i32;
+        let x1_signed = x1 as i32;
+        let y1_signed = y1 as i32;
+
+        self.canvas_mut()
+            .draw_line(
+                Point::from((x0_signed, y0_signed)),
+                Point::from((x1_signed, y1_signed)),
+            )
+            .unwrap();
+    }
+
+    fn fill_and_render_texture(&self, color: RendererColor, texture: &Self::Texture, dst: Rect) {
+        let mut canvas = self.canvas_mut();
+        canvas.set_draw_color(get_sdl_color(&color));
+        canvas.fill_rect(dst).unwrap();
+        canvas.copy(texture, None, dst).unwrap();
+    }
+
+    fn render_text_texture(
+        &self,
+        texture: &Self::Texture,
+        x: u32,
+        y: u32,
+        render_size: u32,
+        scroll: Option<(u32, u32)>,
+    ) {
+        let TextureQuery { width, height, .. } = texture.query();
+        let scroll = scroll.unwrap_or((0, 0));
+        let dst = Rect::new(
+            x as i32 - (scroll.0 * render_size) as i32,
+            y as i32 - (scroll.1 * render_size) as i32,
+            width * TEXT_SIZE_MULTIPLIER,
+            height * TEXT_SIZE_MULTIPLIER,
+        );
+
+        self.canvas_mut().copy(texture, None, dst).unwrap();
+    }
+
+    fn render_text_texture_coordinates(
+        &self,
+        texture: &Self::Texture,
+        coordinates: (u32, u32),
+        render_size: u32,
+        scroll: Option<(u32, u32)>,
+    ) {
+        self.render_text_texture(texture, coordinates.0, coordinates.1, render_size, scroll);
+    }
+
+    fn render_level(
+        &self,
+        graphics: &Graphics,
+        level: &Level,
+        textures: &Textures<Self::Texture>,
+        trigonometry: &Trigonometry,
+    ) {
+        self.canvas_mut().set_draw_color(Color::from((0, 0, 0)));
+        self.canvas_mut().clear();
+        let render_size = graphics.get_render_size();
+
+        for y in 0..std::cmp::min(level.tiles.len() as u32, graphics.get_y_tiles_per_screen()) {
+            for x in 0..std::cmp::min(
+                level.tiles[y as usize].len() as u32,
+                graphics.get_x_tiles_per_screen(),
+            ) {
+                let (x_index, y_index) = get_scroll_corrected_indexes(level.scroll, x, y);
+                if y_index >= level.tiles.len() || x_index >= level.tiles[y_index].len() {
+                    continue;
+                }
+                let texture = match level.tiles[y_index][x_index].texture_type {
+                    TextureType::Floor => &textures.floor,
+                    TextureType::Walls => &textures.walls,
+                    TextureType::Shadow => unreachable!(),
+                };
+                let (texture_width, _texture_height) = Self::get_texture_size(texture);
+                let src = get_block(
+                    level.tiles[y_index][x_index].id,
+                    texture_width,
+                    graphics.tile_size,
+                );
+                let (x_absolute, y_absolute) =
+                    get_absolute_coordinates_from_logical(x, y, graphics.get_render_size());
+                let dst = Rect::new(x_absolute, y_absolute, render_size, render_size);
+                self.canvas_mut().copy(texture, src, dst).unwrap();
+                let (shadow_texture_width, _shadow_texture_height) =
+                    Self::get_texture_size(&textures.shadows);
+                if level.tiles[y_index][x_index].shadow > 0 {
+                    let src = get_block(
+                        level.tiles[y_index][x_index].shadow - 1,
+                        shadow_texture_width,
+                        graphics.tile_size,
+                    );
+                    self.canvas_mut().copy(&textures.shadows, src, dst).unwrap();
+                }
+            }
+        }
+        for (coordinates, spotlight) in &level.spotlights {
+            let (x_screen, y_screen) =
+                get_screen_coordinates_from_level_coordinates(graphics, coordinates, &level.scroll);
+            self.draw_circle(
+                x_screen,
+                y_screen,
+                get_spotlight_render_radius(spotlight),
+                &RendererColor::Blue,
+            );
+        }
+        for (coordinates, steam) in &level.steams {
+            let (x_screen, y_screen) =
+                get_screen_coordinates_from_level_coordinates(graphics, coordinates, &level.scroll);
+            for x in 0..6 {
+                let multiplier = x as f32 * 6.0 * steam.range as f32;
+                self.draw_circle(
+                    x_screen + (trigonometry.sin[steam.angle as usize] * multiplier) as i32,
+                    y_screen + (trigonometry.cos[steam.angle as usize] * multiplier) as i32,
+                    get_steam_render_radius() + x * 2,
+                    &RendererColor::Red,
+                );
+            }
+        }
+
+        self.render_crates(graphics, &level.scroll, textures, &level.crates.staticc);
+    }
+
+    fn create_text_texture(&'a self, font: &FN2, text: &str) -> Self::Texture {
+        let (width, height) = get_text_texture_size(font, text);
+        let mut sdl_texture = self
+            .texture_creator
+            .create_texture_target(
+                PixelFormatEnum::RGBA8888,
+                if width > 0 {
+                    width + TEXT_SHADOW_PIXELS
+                } else {
+                    1
+                },
+                if height > 0 {
+                    height + TEXT_SHADOW_PIXELS
+                } else {
+                    1
+                },
+            )
+            .map_err(|e| e.to_string())
+            .unwrap();
+        sdl_texture.set_blend_mode(BlendMode::Blend);
+
+        self.canvas_mut()
+            .with_texture_canvas(&mut sdl_texture, |texture_canvas| {
+                texture_canvas.set_draw_color(Color::RGB(0, 0, 0));
+                self.render_text_to_canvas(
+                    texture_canvas,
+                    font,
+                    TEXT_SHADOW_PIXELS,
+                    TEXT_SHADOW_PIXELS,
+                    text,
+                );
+                texture_canvas.set_draw_color(Color::RGB(255, 0, 0));
+                self.render_text_to_canvas(texture_canvas, font, 0, 0, text);
+            })
+            .map_err(|e| e.to_string())
+            .unwrap();
+
+        sdl_texture
+    }
+
+    fn get_texture_size(texture: &Self::Texture) -> (u32, u32) {
+        let TextureQuery { width, height, .. } = texture.query();
+        (width, height)
+    }
+
+    fn window_size(&self) -> (u32, u32) {
+        self.canvas_mut().window().size()
+    }
+}
+
+pub fn get_texture_rect<'a, R: Renderer<'a>>(texture: &R::Texture, render_multiplier: u32) -> Rect {
+    let (width, height) = get_texture_render_size::<R>(texture, render_multiplier);
     Rect::new(0, 0, width, height)
 }
 
-pub fn get_texture_size(texture: &Texture) -> (u32, u32) {
-    let TextureQuery { width, height, .. } = texture.query();
-    (width, height)
-}
-
-pub fn get_texture_render_size(texture: &Texture, render_multiplier: u32) -> (u32, u32) {
-    let (width, height) = get_texture_size(texture);
+pub fn get_texture_render_size<'a, R: Renderer<'a>>(
+    texture: &R::Texture,
+    render_multiplier: u32,
+) -> (u32, u32) {
+    let (width, height) = R::get_texture_size(texture);
     (width * render_multiplier, height * render_multiplier)
 }
 

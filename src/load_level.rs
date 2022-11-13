@@ -2,27 +2,27 @@ use std::fs;
 
 use crate::context_util::resize;
 use crate::event::{Event, Keycode};
-use crate::render::Texture;
+use crate::get_bottom_text_position;
+use crate::render::Renderer;
 use crate::types::*;
 use crate::util::TITLE_POSITION;
 use crate::Context;
-use crate::{get_bottom_text_position, Renderer};
 
-struct LoadFile<'a> {
+struct LoadFile<'a, R: Renderer<'a>> {
     filename: String,
-    texture: Texture<'a>,
+    texture: R::Texture,
 }
 
-pub struct LoadLevelState<'a> {
-    renderer: &'a Renderer,
-    load_level_text_texture: Texture<'a>,
-    bottom_instruction_text: Texture<'a>,
-    files: Vec<LoadFile<'a>>,
+pub struct LoadLevelState<'a, R: Renderer<'a>> {
+    renderer: &'a R,
+    load_level_text_texture: R::Texture,
+    bottom_instruction_text: R::Texture,
+    files: Vec<LoadFile<'a, R>>,
     selected: usize,
 }
 
-impl<'a> LoadLevelState<'a> {
-    pub fn new(renderer: &'a Renderer, context: &Context<'a>) -> Self {
+impl<'a, R: Renderer<'a>> LoadLevelState<'a, R> {
+    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
         let load_level_text_texture = renderer.create_text_texture(&context.font, "LOAD LEVEL:");
         let bottom_instruction_text =
             renderer.create_text_texture(&context.font, "ENTER to select or ESC to exit");
@@ -51,7 +51,7 @@ impl<'a> LoadLevelState<'a> {
         }
     }
 
-    pub fn handle_event(&mut self, context: &mut Context<'a>, event: Event) -> Mode {
+    pub fn handle_event(&mut self, context: &mut Context<'a, R>, event: Event) -> Mode {
         match event {
             Event::Quit { .. }
             | Event::KeyDown {
@@ -99,7 +99,7 @@ impl<'a> LoadLevelState<'a> {
         Mode::LoadLevel
     }
 
-    pub fn render(&mut self, context: &Context<'a>) {
+    pub fn render(&mut self, context: &Context<'a, R>) {
         self.renderer.clear_screen();
         let text_position = (40, 60);
         let render_size = context.graphics.get_render_size();

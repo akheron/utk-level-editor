@@ -1,9 +1,9 @@
 use crate::context_util::resize;
 use crate::event::{Event, Keycode};
-use crate::render::Texture;
+use crate::get_bottom_text_position;
+use crate::render::Renderer;
 use crate::types::*;
 use crate::Context;
-use crate::{get_bottom_text_position, Renderer};
 
 enum Value {
     Comment,
@@ -11,20 +11,24 @@ enum Value {
     Number(usize),
 }
 
-struct ConfigOption<'a> {
-    texture: Texture<'a>,
+struct ConfigOption<'a, R: Renderer<'a>> {
+    texture: R::Texture,
     value: Value,
 }
 
-fn load_text<'a>(renderer: &'a Renderer, context: &Context, text: &str) -> Texture<'a> {
+fn load_text<'a, R: Renderer<'a>>(
+    renderer: &'a R,
+    context: &Context<'a, R>,
+    text: &str,
+) -> R::Texture {
     renderer.create_text_texture(&context.font, text)
 }
 
-fn load_value_text<'a>(
-    renderer: &'a Renderer,
-    context: &Context,
+fn load_value_text<'a, R: Renderer<'a>>(
+    renderer: &'a R,
+    context: &Context<'a, R>,
     value: &Value,
-) -> Option<Texture<'a>> {
+) -> Option<R::Texture> {
     let string = match value {
         Value::Number(number) => context.level.general_info.enemy_table[*number].to_string(),
         Value::TimeLimit => format!("{} seconds", context.level.general_info.time_limit),
@@ -45,15 +49,15 @@ fn sanitize_level_comment_input(new_text: &str, target_text: &mut String) {
     }
 }
 
-pub struct GeneralLevelInfoState<'a> {
-    renderer: &'a Renderer,
-    esc_instruction_text: Texture<'a>,
-    options: [ConfigOption<'a>; 10],
+pub struct GeneralLevelInfoState<'a, R: Renderer<'a>> {
+    renderer: &'a R,
+    esc_instruction_text: R::Texture,
+    options: [ConfigOption<'a, R>; 10],
     selected: usize,
 }
 
-impl<'a> GeneralLevelInfoState<'a> {
-    pub fn new(renderer: &'a Renderer, context: &Context<'a>) -> Self {
+impl<'a, R: Renderer<'a>> GeneralLevelInfoState<'a, R> {
+    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
         let options = [
             ConfigOption {
                 texture: load_text(renderer, context, "level comment:"),
@@ -106,7 +110,7 @@ impl<'a> GeneralLevelInfoState<'a> {
         }
     }
 
-    pub fn handle_event(&mut self, context: &mut Context<'a>, event: Event) -> Mode {
+    pub fn handle_event(&mut self, context: &mut Context<'a, R>, event: Event) -> Mode {
         match event {
             Event::Quit { .. }
             | Event::KeyDown {
@@ -169,7 +173,7 @@ impl<'a> GeneralLevelInfoState<'a> {
         Mode::GeneralLevelInfo
     }
 
-    pub fn render(&mut self, context: &Context<'a>) {
+    pub fn render(&mut self, context: &Context<'a, R>) {
         // TODO: Call when GeneralLevelInfo is entered instead of every frame
         self.enable_text_editing_if_needed(context);
 
@@ -217,7 +221,7 @@ impl<'a> GeneralLevelInfoState<'a> {
         );
     }
 
-    fn enable_text_editing_if_needed(&self, context: &Context) {
+    fn enable_text_editing_if_needed(&self, context: &Context<'a, R>) {
         match self.options[self.selected].value {
             Value::Comment => context.start_text_input(),
             _ => context.stop_text_input(),
