@@ -5,14 +5,14 @@ use crate::event::{Event, Keycode, MouseButton};
 use crate::level::StaticCrate;
 use crate::level::StaticCrateType;
 use crate::level::Steam;
-use crate::render;
-use crate::render::Renderer;
+use crate::render::{Renderer, RendererColor, TEXT_SIZE_MULTIPLIER};
 use crate::types::GameType;
 use crate::util::*;
 use crate::Context;
 use crate::Graphics;
 use crate::Level;
 use crate::Mode;
+use crate::TextInput;
 use crate::TextureType;
 
 #[derive(PartialEq)]
@@ -93,7 +93,12 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
         }
     }
 
-    pub fn handle_event(&mut self, context: &mut Context<'a, R>, event: Event) -> Mode {
+    pub fn handle_event<T: TextInput>(
+        &mut self,
+        context: &mut Context<'a, R>,
+        text_input: &T,
+        event: Event,
+    ) -> Mode {
         match event {
             Event::Quit
             | Event::KeyDown {
@@ -104,7 +109,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                     || self.set_position > 0
                 {
                     self.insert_item = InsertType::None;
-                    context.stop_text_input();
+                    text_input.stop();
                     self.set_position = 0;
                     PromptType::None
                 } else {
@@ -138,11 +143,11 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                     return Mode::Help;
                 }
                 Keycode::F2 => {
-                    context.stop_text_input();
+                    text_input.stop();
                     self.prompt = PromptType::Save(SaveLevelType::Prompt);
                 }
                 Keycode::F3 => {
-                    context.stop_text_input();
+                    text_input.stop();
                     return Mode::LoadLevel;
                 }
                 Keycode::F4 => {
@@ -151,7 +156,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                     self.new_level_size_y = DEFAULT_LEVEL_SIZE.1.to_string();
                 }
                 Keycode::F6 => {
-                    context.stop_text_input();
+                    text_input.stop();
                     self.prompt = PromptType::CreateShadows(if context.automatic_shadows {
                         ShadowPromptType::Enabled
                     } else {
@@ -182,7 +187,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                         } else {
                             InsertType::Spotlight(InsertState::Delete)
                         };
-                        context.stop_text_input();
+                        text_input.stop();
                         self.prompt = PromptType::None;
                     }
                 },
@@ -194,7 +199,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                         } else {
                             InsertType::Steam(InsertState::Delete)
                         };
-                        context.stop_text_input();
+                        text_input.stop();
                         self.prompt = PromptType::None;
                     }
                 },
@@ -208,18 +213,18 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                         } else {
                             InsertType::NormalCrate(InsertState::Delete)
                         };
-                        context.stop_text_input();
+                        text_input.stop();
                         self.prompt = PromptType::None;
                     }
                 },
                 Keycode::Y => match self.prompt {
                     PromptType::NewLevel(NewLevelState::Prompt) => {
                         self.prompt = PromptType::NewLevel(NewLevelState::XSize);
-                        context.start_text_input();
+                        text_input.start();
                     }
                     PromptType::Save(SaveLevelType::Prompt) => {
                         self.prompt = PromptType::Save(SaveLevelType::NameInput);
-                        context.start_text_input();
+                        text_input.start();
                     }
                     PromptType::CreateShadows(ref shadow_state) => {
                         context.automatic_shadows = match shadow_state {
@@ -411,7 +416,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                                 self.new_level_size_x.parse::<u8>().unwrap(),
                                 self.new_level_size_y.parse::<u8>().unwrap(),
                             ));
-                            context.stop_text_input();
+                            text_input.stop();
                             context.textures.saved_level_name = None;
                             context.level_save_name.clear();
                             self.prompt = PromptType::None;
@@ -422,7 +427,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                             let level_save_name_uppercase = context.level_save_name.to_uppercase();
                             let level_saved_name = format!("{}.LEV", &level_save_name_uppercase);
                             context.level.serialize(&level_saved_name).unwrap();
-                            context.stop_text_input();
+                            text_input.stop();
                             context.textures.saved_level_name =
                                 Some(self.renderer.create_text_texture(
                                     &context.font,
@@ -554,7 +559,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
         self.renderer.highlight_selected_tile(
             &context.graphics,
             highlighted_id,
-            &render::RendererColor::White,
+            &RendererColor::White,
         );
         let render_size = context.graphics.get_render_size();
         self.renderer.render_text_texture(
@@ -634,7 +639,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                     self.renderer.highlight_selected_tile(
                         &context.graphics,
                         screen_tile_id,
-                        &render::RendererColor::White,
+                        &RendererColor::White,
                     );
                 }
             }
@@ -672,7 +677,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
             let (width, _) = R::get_texture_size(instruction_texture);
             renderer.render_text_texture(
                 &input_text_texture,
-                prompt_position.0 + width * render::TEXT_SIZE_MULTIPLIER + 10,
+                prompt_position.0 + width * TEXT_SIZE_MULTIPLIER + 10,
                 prompt_position.1 + 2 * prompt_line_spacing,
                 render_size,
                 None,

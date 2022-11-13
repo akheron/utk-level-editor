@@ -1,4 +1,5 @@
 use sdl2::image::InitFlag;
+use sdl2::keyboard::TextInputUtil;
 use std::fs::File;
 use std::io::Read;
 
@@ -38,6 +39,23 @@ mod tile_selector;
 mod types;
 mod util;
 
+pub trait TextInput {
+    fn start(&self);
+    fn stop(&self);
+}
+
+struct SdlTextInput(TextInputUtil);
+
+impl TextInput for SdlTextInput {
+    fn start(&self) {
+        self.0.start();
+    }
+
+    fn stop(&self) {
+        self.0.stop();
+    }
+}
+
 pub fn main() {
     let sdl = sdl2::init().unwrap();
     let _image_context = sdl2::image::init(InitFlag::PNG);
@@ -76,14 +94,14 @@ pub fn main() {
         level_save_name: String::new(),
         trigonometry: Trigonometry::new(),
         automatic_shadows: true,
-        sdl_text_input: video_subsystem.text_input(),
     };
+    let text_input = SdlTextInput(video_subsystem.text_input());
 
     let mut state = State::new(&renderer, &context);
     loop {
         for sdl_event in event_pump.poll_iter() {
             if let Some(event) = convert_event(sdl_event) {
-                match state.handle_event(&mut context, event) {
+                match state.handle_event(&mut context, &text_input, event) {
                     RunState::Quit => return,
                     RunState::Run => {}
                 }
@@ -118,15 +136,22 @@ impl<'a, R: Renderer<'a>> State<'a, R> {
         }
     }
 
-    pub fn handle_event(&mut self, context: &mut Context<'a, R>, event: Event) -> RunState {
+    pub fn handle_event<T: TextInput>(
+        &mut self,
+        context: &mut Context<'a, R>,
+        text_input: &T,
+        event: Event,
+    ) -> RunState {
         self.mode = match self.mode {
-            Mode::Editor => self.editor.handle_event(context, event),
+            Mode::Editor => self.editor.handle_event(context, text_input, event),
             Mode::TileSelect => self.tile_select.handle_event(context, event),
             Mode::Help => self.help.handle_event(context, event),
-            Mode::GeneralLevelInfo => self.general_level_info.handle_event(context, event),
+            Mode::GeneralLevelInfo => self
+                .general_level_info
+                .handle_event(context, text_input, event),
             Mode::RandomItemEditor(game_mode) => self
                 .random_item_editor
-                .handle_event(context, game_mode, event),
+                .handle_event(context, text_input, game_mode, event),
             Mode::LoadLevel => self.load_level.handle_event(context, event),
             Mode::Quit => Mode::Quit,
         };

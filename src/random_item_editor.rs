@@ -4,7 +4,7 @@ use crate::level::Level;
 use crate::render::Renderer;
 use crate::types::*;
 use crate::util::{get_bottom_text_position, TITLE_POSITION};
-use crate::Context;
+use crate::{Context, TextInput};
 
 fn load_text<'a, R: Renderer<'a>>(
     renderer: &'a R,
@@ -71,9 +71,10 @@ impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
         }
     }
 
-    pub fn handle_event(
+    pub fn handle_event<T: TextInput>(
         &mut self,
         context: &mut Context<'a, R>,
+        text_input: &T,
         game_type: GameType,
         event: Event,
     ) -> Mode {
@@ -82,7 +83,7 @@ impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
             | Event::KeyDown {
                 keycode: Keycode::Escape,
             } => {
-                context.stop_text_input();
+                text_input.stop();
                 return Mode::Editor;
             }
             Event::Window { win_event } => {

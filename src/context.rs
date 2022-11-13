@@ -26,15 +26,4 @@ pub struct Context<'a, R: Renderer<'a>> {
     pub level_save_name: String,
     pub trigonometry: Trigonometry,
     pub automatic_shadows: bool,
-    pub sdl_text_input: sdl2::keyboard::TextInputUtil,
-}
-
-impl<'a, R: Renderer<'a>> Context<'a, R> {
-    pub fn start_text_input(&self) {
-        self.sdl_text_input.start();
-    }
-
-    pub fn stop_text_input(&self) {
-        self.sdl_text_input.stop();
-    }
 }

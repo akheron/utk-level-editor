@@ -1,9 +1,9 @@
 use crate::context_util::resize;
 use crate::event::{Event, Keycode};
-use crate::get_bottom_text_position;
 use crate::render::Renderer;
 use crate::types::*;
 use crate::Context;
+use crate::{get_bottom_text_position, TextInput};
 
 enum Value {
     Comment,
@@ -110,13 +110,18 @@ impl<'a, R: Renderer<'a>> GeneralLevelInfoState<'a, R> {
         }
     }
 
-    pub fn handle_event(&mut self, context: &mut Context<'a, R>, event: Event) -> Mode {
+    pub fn handle_event<T: TextInput>(
+        &mut self,
+        context: &mut Context<'a, R>,
+        text_input: &T,
+        event: Event,
+    ) -> Mode {
         match event {
             Event::Quit { .. }
             | Event::KeyDown {
                 keycode: Keycode::Escape,
             } => {
-                context.stop_text_input();
+                text_input.stop();
                 return Mode::Editor;
             }
             Event::Window { win_event } => {
@@ -132,13 +137,13 @@ impl<'a, R: Renderer<'a>> GeneralLevelInfoState<'a, R> {
                 Keycode::Down => {
                     if self.selected < self.options.len() - 1 {
                         self.selected += 1;
-                        self.enable_text_editing_if_needed(context);
+                        self.enable_text_editing_if_needed(text_input);
                     }
                 }
                 Keycode::Up => {
                     if self.selected > 0 {
                         self.selected -= 1;
-                        self.enable_text_editing_if_needed(context);
+                        self.enable_text_editing_if_needed(text_input);
                     }
                 }
                 Keycode::Right => match self.options[self.selected].value {
@@ -174,9 +179,6 @@ impl<'a, R: Renderer<'a>> GeneralLevelInfoState<'a, R> {
     }
 
     pub fn render(&mut self, context: &Context<'a, R>) {
-        // TODO: Call when GeneralLevelInfo is entered instead of every frame
-        self.enable_text_editing_if_needed(context);
-
         self.renderer.clear_screen();
         let mut option_position = (40, 20);
         let mut value_position = (300, option_position.1);
@@ -221,10 +223,10 @@ impl<'a, R: Renderer<'a>> GeneralLevelInfoState<'a, R> {
         );
     }
 
-    fn enable_text_editing_if_needed(&self, context: &Context<'a, R>) {
+    fn enable_text_editing_if_needed<T: TextInput>(&self, text_input: &T) {
         match self.options[self.selected].value {
-            Value::Comment => context.start_text_input(),
-            _ => context.stop_text_input(),
+            Value::Comment => text_input.start(),
+            _ => text_input.stop(),
         }
     }
 }
