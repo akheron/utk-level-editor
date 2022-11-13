@@ -1,4 +1,6 @@
 use sdl2::image::InitFlag;
+use std::fs::File;
+use std::io::Read;
 
 use crate::context::Context;
 use crate::context::Textures;
@@ -52,7 +54,14 @@ pub fn main() {
         .unwrap();
     let mut event_pump = sdl.event_pump().unwrap();
     let renderer = Renderer::new(window);
-    let font = load_font("./assets/TETRIS.FN2");
+    let font = {
+        let mut font_data = Vec::new();
+        File::open("assets/TETRIS.FN2")
+            .expect("Failed to open assets/TETRIS.FN2")
+            .read_to_end(&mut font_data)
+            .unwrap();
+        load_font(&font_data)
+    };
     let textures = get_textures(&renderer, &font);
     let mut context = Context {
         graphics,
