@@ -1,26 +1,22 @@
 use sdl2::image::LoadTexture;
-use sdl2::pixels::{Color, PixelFormatEnum};
+use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Point;
-use sdl2::rect::Rect;
+use sdl2::render::Texture as SdlTexture;
 use sdl2::render::TextureQuery;
-use sdl2::render::{BlendMode, Texture as SdlTexture};
 use sdl2::render::{Canvas, TextureCreator};
+use sdl2::surface::Surface;
 use sdl2::video::{Window, WindowContext};
 use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 
-use crate::crates::CrateClass;
-use crate::fn2::FN2;
-use crate::level::DIFF_BULLETS;
-use crate::level::DIFF_WEAPONS;
+use crate::font::Font;
+use crate::level::{bullet_crates, energy_crates, weapon_crates, CrateClass};
 use crate::level::{StaticCrate, StaticCrateType};
 use crate::types::*;
 use crate::util::*;
 use crate::Graphics;
 use crate::Level;
 use crate::Textures;
-
-pub const TEXT_SIZE_MULTIPLIER: u32 = 2;
 
 pub enum RendererColor {
     Black,
@@ -44,37 +40,75 @@ fn get_sdl_color(color: &RendererColor) -> Color {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+}
+
+impl From<(u8, u8, u8)> for Color {
+    fn from((r, g, b): (u8, u8, u8)) -> Self {
+        Self { r, g, b, a: 255 }
+    }
+}
+
+impl From<(u8, u8, u8, u8)> for Color {
+    fn from((r, g, b, a): (u8, u8, u8, u8)) -> Self {
+        Self { r, g, b, a }
+    }
+}
+
+impl From<Color> for sdl2::pixels::Color {
+    fn from(color: Color) -> Self {
+        Self::RGBA(color.r, color.g, color.b, color.a)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Rect {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl Rect {
+    pub fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+}
+
+impl From<Rect> for sdl2::rect::Rect {
+    fn from(rect: Rect) -> Self {
+        sdl2::rect::Rect::new(rect.x, rect.y, rect.width, rect.height)
+    }
+}
+
 pub trait Renderer<'a> {
     type Texture;
 
     fn load_texture(&'a self, path: &str) -> Self::Texture;
+    fn create_texture(&'a self, width: u32, height: u32, data: &[Color]) -> Self::Texture;
     fn clear_screen(&self);
     fn highlight_selected_tile(&self, graphics: &Graphics, id: u32, color: &RendererColor);
     fn draw_line(&self, x0: u32, y0: u32, x1: u32, y1: u32);
+    fn render_texture(&self, texture: &Self::Texture, dst: Rect);
     fn fill_and_render_texture(&self, color: RendererColor, texture: &Self::Texture, dst: Rect);
-    fn render_text_texture(
-        &self,
-        texture: &Self::Texture,
-        x: u32,
-        y: u32,
-        render_size: u32,
-        scroll: Option<(u32, u32)>,
-    );
-    fn render_text_texture_coordinates(
-        &self,
-        texture: &Self::Texture,
-        coordinates: (u32, u32),
-        render_size: u32,
-        scroll: Option<(u32, u32)>,
-    );
     fn render_level(
         &self,
         graphics: &Graphics,
         level: &Level,
         textures: &Textures<Self::Texture>,
         trigonometry: &Trigonometry,
+        font: &Font<'a, Self>,
     );
-    fn create_text_texture(&'a self, font: &FN2, text: &str) -> Self::Texture;
     fn get_texture_size(texture: &Self::Texture) -> (u32, u32);
     fn window_size(&self) -> (u32, u32);
 }
@@ -149,8 +183,8 @@ impl SdlRenderer {
         &self,
         graphics: &Graphics,
         scroll: &(u32, u32),
-        textures: &Textures<SdlTexture>,
         crates: &HashMap<(u32, u32), StaticCrateType>,
+        font: &Font<'_, Self>,
     ) {
         for (coordinates, crate_item) in crates {
             let box_size = get_crate_render_size();
@@ -162,10 +196,12 @@ impl SdlRenderer {
                     StaticCrate::Deathmatch => &RendererColor::LightBlue,
                 }));
             self.canvas_mut()
-                .draw_rect(Rect::new(x_screen, y_screen, box_size, box_size))
+                .draw_rect(sdl2::rect::Rect::new(
+                    x_screen, y_screen, box_size, box_size,
+                ))
                 .unwrap();
             self.canvas_mut()
-                .draw_rect(Rect::new(
+                .draw_rect(sdl2::rect::Rect::new(
                     x_screen + 1,
                     y_screen + 1,
                     box_size - 2,
@@ -173,73 +209,25 @@ impl SdlRenderer {
                 ))
                 .unwrap();
 
-            let texture_index = match crate_item.crate_class {
-                CrateClass::Weapon => 0,
-                CrateClass::Bullet => DIFF_WEAPONS,
-                CrateClass::Energy => DIFF_BULLETS + DIFF_WEAPONS,
-            } + crate_item.crate_type as u32;
-            let texture = &textures.crates[texture_index as usize];
-            let TextureQuery { height, .. } = texture.query();
-            self.render_text_texture(
-                texture,
-                (x_screen - 10) as u32,
-                (y_screen - 9 - height as i32) as u32,
-                graphics.get_render_size(),
-                None,
+            let text = match crate_item.crate_class {
+                CrateClass::Weapon => weapon_crates(),
+                CrateClass::Bullet => bullet_crates(),
+                CrateClass::Energy => energy_crates(),
+            }[crate_item.crate_type as usize];
+            let (_, height) = font.text_size(text);
+            font.render_text(
+                self,
+                text,
+                (
+                    (x_screen - 10) as u32,
+                    (y_screen - 9 - height as i32) as u32,
+                ),
             );
         }
     }
 
     pub fn present(&self) {
         self.canvas_mut().present();
-    }
-
-    fn render_text_to_canvas(
-        &self,
-        canvas: &mut Canvas<Window>,
-        font: &FN2,
-        x: u32,
-        y: u32,
-        text: &str,
-    ) {
-        let mut offset = 0;
-        for c in text.chars() {
-            let character_index = char_to_index(c);
-            if character_index < INDEX_OFFSET {
-                offset += SPACE_WIDTH as u32;
-            } else {
-                offset += self.render_character(
-                    canvas,
-                    font,
-                    (character_index - INDEX_OFFSET) as usize,
-                    x + offset,
-                    y,
-                );
-            }
-        }
-    }
-
-    fn render_character(
-        &self,
-        canvas: &mut Canvas<Window>,
-        characters: &FN2,
-        index: usize,
-        x: u32,
-        y: u32,
-    ) -> u32 {
-        let character = &characters[index];
-        for line in &character.lines {
-            canvas
-                .draw_line(
-                    Point::new(line.x as i32 + x as i32, line.y as i32 + y as i32),
-                    Point::new(
-                        line.x as i32 + x as i32 + line.width as i32 - 1,
-                        line.y as i32 + y as i32,
-                    ),
-                )
-                .unwrap();
-        }
-        character.width
     }
 
     fn canvas_mut(&self) -> RefMut<Canvas<Window>> {
@@ -252,6 +240,24 @@ impl<'a> Renderer<'a> for SdlRenderer {
 
     fn load_texture(&'a self, path: &str) -> Self::Texture {
         self.texture_creator.load_texture(path).unwrap()
+    }
+
+    fn create_texture(&'a self, width: u32, height: u32, pixels: &[Color]) -> Self::Texture {
+        let mut data = Vec::with_capacity(pixels.len() * 4);
+        for pixel in pixels {
+            data.push(pixel.r);
+            data.push(pixel.g);
+            data.push(pixel.b);
+            data.push(pixel.a);
+        }
+        let surface = Surface::from_data(
+            &mut data,
+            width,
+            height,
+            width * 4,
+            PixelFormatEnum::ABGR8888,
+        );
+        return surface.unwrap().as_texture(&self.texture_creator).unwrap();
     }
 
     fn clear_screen(&self) {
@@ -303,41 +309,17 @@ impl<'a> Renderer<'a> for SdlRenderer {
             .unwrap();
     }
 
+    fn render_texture(&self, texture: &Self::Texture, dst: Rect) {
+        self.canvas_mut()
+            .copy(texture, None, Some(dst.into()))
+            .unwrap();
+    }
+
     fn fill_and_render_texture(&self, color: RendererColor, texture: &Self::Texture, dst: Rect) {
         let mut canvas = self.canvas_mut();
         canvas.set_draw_color(get_sdl_color(&color));
-        canvas.fill_rect(dst).unwrap();
-        canvas.copy(texture, None, dst).unwrap();
-    }
-
-    fn render_text_texture(
-        &self,
-        texture: &Self::Texture,
-        x: u32,
-        y: u32,
-        render_size: u32,
-        scroll: Option<(u32, u32)>,
-    ) {
-        let TextureQuery { width, height, .. } = texture.query();
-        let scroll = scroll.unwrap_or((0, 0));
-        let dst = Rect::new(
-            x as i32 - (scroll.0 * render_size) as i32,
-            y as i32 - (scroll.1 * render_size) as i32,
-            width * TEXT_SIZE_MULTIPLIER,
-            height * TEXT_SIZE_MULTIPLIER,
-        );
-
-        self.canvas_mut().copy(texture, None, dst).unwrap();
-    }
-
-    fn render_text_texture_coordinates(
-        &self,
-        texture: &Self::Texture,
-        coordinates: (u32, u32),
-        render_size: u32,
-        scroll: Option<(u32, u32)>,
-    ) {
-        self.render_text_texture(texture, coordinates.0, coordinates.1, render_size, scroll);
+        canvas.fill_rect(Some(dst.into())).unwrap();
+        canvas.copy(texture, None, Some(dst.into())).unwrap();
     }
 
     fn render_level(
@@ -346,6 +328,7 @@ impl<'a> Renderer<'a> for SdlRenderer {
         level: &Level,
         textures: &Textures<Self::Texture>,
         trigonometry: &Trigonometry,
+        font: &Font<'a, Self>,
     ) {
         self.canvas_mut().set_draw_color(Color::from((0, 0, 0)));
         self.canvas_mut().clear();
@@ -373,7 +356,7 @@ impl<'a> Renderer<'a> for SdlRenderer {
                 );
                 let (x_absolute, y_absolute) =
                     get_absolute_coordinates_from_logical(x, y, graphics.get_render_size());
-                let dst = Rect::new(x_absolute, y_absolute, render_size, render_size);
+                let dst = sdl2::rect::Rect::new(x_absolute, y_absolute, render_size, render_size);
                 self.canvas_mut().copy(texture, src, dst).unwrap();
                 let (shadow_texture_width, _shadow_texture_height) =
                     Self::get_texture_size(&textures.shadows);
@@ -411,47 +394,7 @@ impl<'a> Renderer<'a> for SdlRenderer {
             }
         }
 
-        self.render_crates(graphics, &level.scroll, textures, &level.crates.staticc);
-    }
-
-    fn create_text_texture(&'a self, font: &FN2, text: &str) -> Self::Texture {
-        let (width, height) = get_text_texture_size(font, text);
-        let mut sdl_texture = self
-            .texture_creator
-            .create_texture_target(
-                PixelFormatEnum::RGBA8888,
-                if width > 0 {
-                    width + TEXT_SHADOW_PIXELS
-                } else {
-                    1
-                },
-                if height > 0 {
-                    height + TEXT_SHADOW_PIXELS
-                } else {
-                    1
-                },
-            )
-            .map_err(|e| e.to_string())
-            .unwrap();
-        sdl_texture.set_blend_mode(BlendMode::Blend);
-
-        self.canvas_mut()
-            .with_texture_canvas(&mut sdl_texture, |texture_canvas| {
-                texture_canvas.set_draw_color(Color::RGB(0, 0, 0));
-                self.render_text_to_canvas(
-                    texture_canvas,
-                    font,
-                    TEXT_SHADOW_PIXELS,
-                    TEXT_SHADOW_PIXELS,
-                    text,
-                );
-                texture_canvas.set_draw_color(Color::RGB(255, 0, 0));
-                self.render_text_to_canvas(texture_canvas, font, 0, 0, text);
-            })
-            .map_err(|e| e.to_string())
-            .unwrap();
-
-        sdl_texture
+        self.render_crates(graphics, &level.scroll, &level.crates.staticc, font);
     }
 
     fn get_texture_size(texture: &Self::Texture) -> (u32, u32) {
@@ -477,35 +420,7 @@ pub fn get_texture_render_size<'a, R: Renderer<'a>>(
     (width * render_multiplier, height * render_multiplier)
 }
 
-fn get_text_texture_size(font: &FN2, text: &str) -> (u32, u32) {
-    let mut width = 0;
-    let mut height = 0;
-
-    for c in text.chars() {
-        let character_index = char_to_index(c);
-        if character_index < INDEX_OFFSET {
-            width += SPACE_WIDTH as u32;
-        } else {
-            let index = (character_index - INDEX_OFFSET) as usize;
-            let character = &font[index];
-            width += character.width;
-            if character.height > height {
-                height = character.height;
-            }
-        }
-    }
-
-    (width, height)
-}
-
-fn get_block(id: u32, width: u32, tile_size: u32) -> Rect {
+fn get_block(id: u32, width: u32, tile_size: u32) -> sdl2::rect::Rect {
     let (x, y) = get_tile_coordinates(id, width, tile_size);
-    Rect::new(x as i32, y as i32, tile_size, tile_size)
+    sdl2::rect::Rect::new(x as i32, y as i32, tile_size, tile_size)
 }
-
-fn char_to_index(c: char) -> usize {
-    (c as u8).into()
-}
-static INDEX_OFFSET: usize = 0x21;
-static SPACE_WIDTH: u8 = 5;
-static TEXT_SHADOW_PIXELS: u32 = 1;

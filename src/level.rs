@@ -2,13 +2,73 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::collections::HashMap;
 use std::{fs::File, io::Write};
 
-use crate::crates::CrateClass;
 use crate::types::*;
 use crate::util::*;
 
-pub const DIFF_BULLETS: u32 = 9;
-pub const DIFF_WEAPONS: u32 = 11;
-pub const DIFF_ENEMIES: u32 = 8;
+#[derive(Clone, Copy)]
+pub enum CrateClass {
+    Weapon = 0,
+    Bullet = 1,
+    Energy = 2,
+}
+
+impl CrateClass {
+    pub fn from_u32(value: u32) -> CrateClass {
+        match value {
+            0 => CrateClass::Weapon,
+            1 => CrateClass::Bullet,
+            2 => CrateClass::Energy,
+            _ => panic!("Unknown value: {}", value),
+        }
+    }
+}
+pub const ALL_CRATES: &[&str] = &[
+    "pistol",
+    "shotgun",
+    "uzi",
+    "auto rifle",
+    "grenade launcher",
+    "auto grenadier",
+    "heavy launcher",
+    "auto shotgun",
+    "c4-activator",
+    "flame thrower",
+    "mine dropper",
+    "9mm bullets (50)",
+    "12mm bullets (50)",
+    "shotgun shells (20)",
+    "light grenades (15)",
+    "medium grenades (10)",
+    "heavy grenades (5)",
+    "c4-explosives (5)",
+    "gas (50)",
+    "mines (5)",
+    "energy",
+];
+
+pub fn weapon_crates() -> &'static [&'static str] {
+    &ALL_CRATES[..=10]
+}
+
+pub fn bullet_crates() -> &'static [&'static str] {
+    &ALL_CRATES[11..=19]
+}
+
+pub fn energy_crates() -> &'static [&'static str] {
+    &ALL_CRATES[20..=20]
+}
+
+pub fn crates(cls: CrateClass) -> &'static [&'static str] {
+    match cls {
+        CrateClass::Weapon => weapon_crates(),
+        CrateClass::Bullet => bullet_crates(),
+        CrateClass::Energy => energy_crates(),
+    }
+}
+
+const DIFF_WEAPONS: usize = 11;
+const DIFF_BULLETS: usize = 9;
+const DIFF_ENEMIES: usize = 8;
 
 const VERSION: u32 = 5;
 
@@ -505,6 +565,13 @@ impl Level {
         }
 
         Ok(())
+    }
+
+    pub fn origo(&self, render_size: u32) -> (i32, i32) {
+        (
+            -((self.scroll.0 * render_size) as i32),
+            -((self.scroll.1 * render_size) as i32),
+        )
     }
 
     pub fn deserialize(&mut self, filename: &str) -> Result<(), DeserializationError> {

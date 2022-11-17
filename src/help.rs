@@ -28,20 +28,11 @@ const LINES: [&str; 19] = [
 
 pub struct HelpState<'a, R: Renderer<'a>> {
     renderer: &'a R,
-    line_textures: Vec<R::Texture>,
 }
 
 impl<'a, R: Renderer<'a>> HelpState<'a, R> {
-    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
-        let line_textures = LINES
-            .iter()
-            .map(|text| renderer.create_text_texture(&context.font, text))
-            .collect();
-
-        HelpState {
-            renderer,
-            line_textures,
-        }
+    pub fn new(renderer: &'a R) -> Self {
+        HelpState { renderer }
     }
 
     pub fn handle_event(&mut self, context: &mut Context<'a, R>, event: Event) -> Mode {
@@ -62,14 +53,10 @@ impl<'a, R: Renderer<'a>> HelpState<'a, R> {
     pub fn render(&self, context: &Context<'a, R>) {
         self.renderer.clear_screen();
         let mut position = 6;
-        for line_texture in &self.line_textures {
-            self.renderer.render_text_texture(
-                line_texture,
-                10,
-                position,
-                context.graphics.get_render_size(),
-                None,
-            );
+        for line_text in &LINES {
+            context
+                .font
+                .render_text(self.renderer, line_text, (10, position));
             position += 22;
         }
     }

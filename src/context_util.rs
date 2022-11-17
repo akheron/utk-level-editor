@@ -1,6 +1,5 @@
-use crate::crates;
 use crate::event::WindowEvent;
-use crate::fn2::FN2;
+use crate::font::Font;
 use crate::render::Renderer;
 use crate::Context;
 use crate::Textures;
@@ -12,7 +11,8 @@ fn refresh<'a, R: Renderer<'a>>(
 ) {
     context.graphics.resolution_x = window_size.0;
     context.graphics.resolution_y = window_size.1;
-    context.textures = get_textures(renderer, &context.font);
+    context.font = Font::new(renderer, &context.fn2);
+    context.textures = get_textures(renderer);
 }
 
 pub fn resize<'a, R: Renderer<'a>>(
@@ -30,20 +30,10 @@ pub fn resize<'a, R: Renderer<'a>>(
     }
 }
 
-pub fn get_textures<'a, R: Renderer<'a>>(renderer: &'a R, font: &FN2) -> Textures<R::Texture> {
-    let selected_icon = renderer.create_text_texture(font, "*");
-    let crate_textures = crates::get_crates()
-        .iter()
-        .flatten()
-        .map(|name| renderer.create_text_texture(font, name))
-        .collect::<Vec<_>>();
-
+pub fn get_textures<'a, R: Renderer<'a>>(renderer: &'a R) -> Textures<R::Texture> {
     Textures {
         floor: renderer.load_texture("./assets/FLOOR1.PNG"),
         walls: renderer.load_texture("./assets/WALLS1.PNG"),
         shadows: renderer.load_texture("./assets/SHADOWS_ALPHA.PNG"),
-        selected_icon,
-        saved_level_name: None,
-        crates: crate_textures,
     }
 }

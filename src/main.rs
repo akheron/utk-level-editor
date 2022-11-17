@@ -8,7 +8,8 @@ use crate::context::Textures;
 use crate::context_util::get_textures;
 use crate::editor::EditorState;
 use crate::event::{Event, Keycode, MouseButton, WindowEvent};
-use crate::fn2::load_font;
+use crate::fn2::FN2;
+use crate::font::Font;
 use crate::general_level_info::GeneralLevelInfoState;
 use crate::graphics::Graphics;
 use crate::help::HelpState;
@@ -23,11 +24,10 @@ use std::time::Duration;
 
 mod context;
 mod context_util;
-mod crates;
 mod editor;
-mod editor_textures;
 mod event;
 mod fn2;
+mod font;
 mod general_level_info;
 mod graphics;
 mod help;
@@ -73,17 +73,19 @@ pub fn main() {
         .unwrap();
     let mut event_pump = sdl.event_pump().unwrap();
     let renderer = SdlRenderer::new(window);
-    let font = {
+    let fn2 = {
         let mut font_data = Vec::new();
         File::open("assets/TETRIS.FN2")
             .expect("Failed to open assets/TETRIS.FN2")
             .read_to_end(&mut font_data)
             .unwrap();
-        load_font(&font_data)
+        FN2::parse(&font_data)
     };
-    let textures = get_textures(&renderer, &font);
+    let font = Font::new(&renderer, &fn2);
+    let textures = get_textures(&renderer);
     let mut context = Context {
         graphics,
+        fn2,
         font,
         textures,
         level: Level::get_default_level((32, 22)),
@@ -92,12 +94,13 @@ pub fn main() {
         texture_type_scrolled: TextureType::Floor,
         mouse: (0, 0),
         level_save_name: String::new(),
+        saved_level_name: None,
         trigonometry: Trigonometry::new(),
         automatic_shadows: true,
     };
     let text_input = SdlTextInput(video_subsystem.text_input());
 
-    let mut state = State::new(&renderer, &context);
+    let mut state = State::new(&renderer);
     loop {
         for sdl_event in event_pump.poll_iter() {
             if let Some(event) = convert_event(sdl_event) {
@@ -124,15 +127,15 @@ struct State<'a, R: Renderer<'a>> {
 }
 
 impl<'a, R: Renderer<'a>> State<'a, R> {
-    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
+    pub fn new(renderer: &'a R) -> Self {
         Self {
             mode: Mode::Editor,
-            editor: EditorState::new(renderer, context),
-            tile_select: TileSelectState::new(renderer, context),
-            help: HelpState::new(renderer, context),
-            general_level_info: GeneralLevelInfoState::new(renderer, context),
-            random_item_editor: RandomItemEditorState::new(renderer, context),
-            load_level: LoadLevelState::new(renderer, context),
+            editor: EditorState::new(renderer),
+            tile_select: TileSelectState::new(renderer),
+            help: HelpState::new(renderer),
+            general_level_info: GeneralLevelInfoState::new(renderer),
+            random_item_editor: RandomItemEditorState::new(renderer),
+            load_level: LoadLevelState::new(renderer),
         }
     }
 

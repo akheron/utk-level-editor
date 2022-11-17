@@ -7,24 +7,11 @@ use crate::Context;
 
 pub struct TileSelectState<'a, R: Renderer<'a>> {
     renderer: &'a R,
-    floor_blocks_text_texture: R::Texture,
-    wall_blocks_text_texture: R::Texture,
-    shadow_blocks_text_texture: R::Texture,
 }
 
 impl<'a, R: Renderer<'a>> TileSelectState<'a, R> {
-    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
-        TileSelectState {
-            renderer,
-            floor_blocks_text_texture: renderer
-                .create_text_texture(&context.font, "floor blocks (PAGEGUP/DOWN)"),
-            wall_blocks_text_texture: renderer
-                .create_text_texture(&context.font, "wall blocks (PAGEGUP/DOWN)"),
-            shadow_blocks_text_texture: renderer.create_text_texture(
-                &context.font,
-                "shadows (PAGEGUP/DOWN) - clear with RIGHT CLICK",
-            ),
-        }
+    pub fn new(renderer: &'a R) -> Self {
+        TileSelectState { renderer }
     }
 
     pub fn handle_event(&self, context: &mut Context<'a, R>, event: Event) -> Mode {
@@ -149,15 +136,14 @@ impl<'a, R: Renderer<'a>> TileSelectState<'a, R> {
             );
         }
         let active_text = match context.texture_type_scrolled {
-            TextureType::Floor => &self.floor_blocks_text_texture,
-            TextureType::Walls => &self.wall_blocks_text_texture,
-            TextureType::Shadow => &self.shadow_blocks_text_texture,
+            TextureType::Floor => "floor blocks (PAGEGUP/DOWN)",
+            TextureType::Walls => "wall blocks (PAGEGUP/DOWN)",
+            TextureType::Shadow => "shadows (PAGEGUP/DOWN) - clear with RIGHT CLICK",
         };
-        self.renderer.render_text_texture_coordinates(
+        context.font.render_text(
+            self.renderer,
             active_text,
             get_bottom_text_position(context.graphics.resolution_y),
-            context.graphics.get_render_size(),
-            None,
         );
     }
 }

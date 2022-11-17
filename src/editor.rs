@@ -1,11 +1,9 @@
 use crate::context_util::resize;
-use crate::crates::{get_crates, CrateClass, Crates};
-use crate::editor_textures::EditorTextures;
 use crate::event::{Event, Keycode, MouseButton};
-use crate::level::StaticCrate;
-use crate::level::StaticCrateType;
 use crate::level::Steam;
-use crate::render::{Renderer, RendererColor, TEXT_SIZE_MULTIPLIER};
+use crate::level::{crates, StaticCrateType};
+use crate::level::{CrateClass, StaticCrate};
+use crate::render::{Renderer, RendererColor};
 use crate::types::GameType;
 use crate::util::*;
 use crate::Context;
@@ -61,7 +59,6 @@ enum InsertType {
 
 pub struct EditorState<'a, R: Renderer<'a>> {
     renderer: &'a R,
-    textures: EditorTextures<'a, R>,
     set_position: u8,
     mouse_left_click: Option<(u32, u32)>,
     mouse_right_click: bool,
@@ -70,17 +67,14 @@ pub struct EditorState<'a, R: Renderer<'a>> {
     new_level_size_x: String,
     new_level_size_y: String,
     drag_tiles: bool,
-    crates: Crates<'a>,
 }
 
 static DEFAULT_LEVEL_SIZE: (u32, u32) = (16, 12);
 
 impl<'a, R: Renderer<'a>> EditorState<'a, R> {
-    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
-        let textures = EditorTextures::new(renderer, context);
+    pub fn new(renderer: &'a R) -> Self {
         EditorState {
             renderer,
-            textures,
             set_position: 0,
             mouse_left_click: None,
             mouse_right_click: false,
@@ -89,7 +83,6 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
             new_level_size_x: DEFAULT_LEVEL_SIZE.0.to_string(),
             new_level_size_y: DEFAULT_LEVEL_SIZE.1.to_string(),
             drag_tiles: false,
-            crates: get_crates(),
         }
     }
 
@@ -133,7 +126,6 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
             },
             Event::Window { win_event } => {
                 resize(self.renderer, context, win_event);
-                self.textures = EditorTextures::new(self.renderer, context);
             }
             Event::KeyDown { keycode, .. } => match keycode {
                 Keycode::Space => {
@@ -373,7 +365,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                         if let InsertState::Instructions(coordinates) = state {
                             let mut crate_item = *context.level.get_crate_from_level(coordinates);
                             if crate_item.crate_type
-                                < (self.crates[crate_item.crate_class as usize].len() - 1) as u8
+                                < (crates(crate_item.crate_class).len() - 1) as u8
                             {
                                 crate_item.crate_type += 1;
                                 context.level.put_crate_to_level(coordinates, &crate_item);
@@ -417,7 +409,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                                 self.new_level_size_y.parse::<u8>().unwrap(),
                             ));
                             text_input.stop();
-                            context.textures.saved_level_name = None;
+                            context.saved_level_name = None;
                             context.level_save_name.clear();
                             self.prompt = PromptType::None;
                         }
@@ -428,11 +420,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                             let level_saved_name = format!("{}.LEV", &level_save_name_uppercase);
                             context.level.serialize(&level_saved_name).unwrap();
                             text_input.stop();
-                            context.textures.saved_level_name =
-                                Some(self.renderer.create_text_texture(
-                                    &context.font,
-                                    &level_saved_name.to_lowercase(),
-                                ));
+                            context.saved_level_name = Some(level_saved_name.to_lowercase());
                             self.prompt = PromptType::None;
                         }
                         _ => {}
@@ -544,6 +532,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
             &context.level,
             &context.textures,
             &context.trigonometry,
+            &context.font,
         );
         let highlighted_id = get_tile_id_from_coordinates(
             &context.graphics,
@@ -562,64 +551,52 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
             &RendererColor::White,
         );
         let render_size = context.graphics.get_render_size();
-        self.renderer.render_text_texture(
-            &self.textures.p1_text_texture,
-            context.level.p1_position.0 * render_size,
-            context.level.p1_position.1 * render_size,
-            render_size,
-            Some(context.level.scroll),
+        context.font.render_text_relative(
+            self.renderer,
+            "PL1",
+            context.level.origo(render_size),
+            (
+                context.level.p1_position.0 * render_size,
+                context.level.p1_position.1 * render_size,
+            ),
         );
-        self.renderer.render_text_texture(
-            &self.textures.p2_text_texture,
-            context.level.p2_position.0 * render_size,
-            context.level.p2_position.1 * render_size,
-            render_size,
-            Some(context.level.scroll),
+        context.font.render_text_relative(
+            self.renderer,
+            "PL2",
+            context.level.origo(render_size),
+            (
+                context.level.p2_position.0 * render_size,
+                context.level.p2_position.1 * render_size,
+            ),
         );
-        let text_position = (8, 8);
-        let text_texture = if self.set_position == 1 {
-            &self.textures.p1_set_text_texture
+        let text = if self.set_position == 1 {
+            "place PL1 start point"
         } else if self.set_position == 2 {
-            &self.textures.p2_set_text_texture
+            "place PL2 start point"
         } else {
             match self.insert_item {
                 InsertType::Spotlight(InsertState::Instructions(_)) => {
-                    &self.textures.spotlight_instructions_text_texture
+                    "use UP and DOWN keys to adjust size, ENTER to accept"
                 }
-                InsertType::Spotlight(InsertState::Place) => {
-                    &self.textures.spotlight_place_text_texture
-                }
-                InsertType::Spotlight(InsertState::Delete) => {
-                    &self.textures.spotlight_delete_text_texture
-                }
+                InsertType::Spotlight(InsertState::Place) => "place spotlight (ESC to cancel)",
+                InsertType::Spotlight(InsertState::Delete) => "delete spotlight (ESC to cancel)",
                 InsertType::Steam(InsertState::Instructions(_)) => {
-                    &self.textures.steam_instructions_text_texture
+                    "UP/DOWN: range, LEFT/RIGHT: dir, ENTER to accept"
                 }
-                InsertType::Steam(InsertState::Place) => &self.textures.steam_place_text_texture,
-                InsertType::Steam(InsertState::Delete) => &self.textures.steam_delete_text_texture,
-                InsertType::NormalCrate(InsertState::Place) => {
-                    &self.textures.place_normal_crate_text_texture
-                }
-                InsertType::DMCrate(InsertState::Place) => {
-                    &self.textures.place_deathmatch_create_text_texture
-                }
+                InsertType::Steam(InsertState::Place) => "place steam (ESC to cancel)",
+                InsertType::Steam(InsertState::Delete) => "delete steam (ESC to cancel)",
+                InsertType::NormalCrate(InsertState::Place) => "place normal game crate",
+                InsertType::DMCrate(InsertState::Place) => "place deathmatch game crate",
                 InsertType::NormalCrate(InsertState::Instructions(_))
                 | InsertType::DMCrate(InsertState::Instructions(_)) => {
-                    &self.textures.insert_crate_text_texture
+                    "UP/DOWN/LEFT/RIGHT: select CRATE, ENTER to accept"
                 }
                 InsertType::NormalCrate(InsertState::Delete)
-                | InsertType::DMCrate(InsertState::Delete) => {
-                    &self.textures.delete_crate_text_texture
-                }
-                _ => &self.textures.help_text_texture,
+                | InsertType::DMCrate(InsertState::Delete) => "delete crate",
+                _ => "F1 for help",
             }
         };
-        self.renderer.render_text_texture_coordinates(
-            text_texture,
-            text_position,
-            render_size,
-            None,
-        );
+        context.font.render_text(self.renderer, text, (8, 8));
         self.render_prompt_if_needed(self.renderer, context);
         if self.insert_item == InsertType::None {
             if let Some(coordinates) = self.mouse_left_click {
@@ -644,13 +621,9 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                 }
             }
         }
-        if let Some(texture) = &context.textures.saved_level_name {
-            self.renderer.render_text_texture_coordinates(
-                texture,
-                get_bottom_text_position(context.graphics.resolution_y),
-                render_size,
-                None,
-            );
+        if let Some(text) = &context.saved_level_name {
+            let (x, y) = get_bottom_text_position(context.graphics.resolution_y);
+            context.font.render_text(self.renderer, text, (x, y));
         }
     }
 
@@ -660,27 +633,27 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
         context: &Context<'a, R>,
         prompt_position: (u32, u32),
         prompt_line_spacing: u32,
-        instruction_texture: &R::Texture,
-        input_field: &str,
+        instruction_text: &str,
+        input_text: &str,
     ) {
-        let render_size = context.graphics.get_render_size();
-        renderer.render_text_texture(
-            instruction_texture,
-            prompt_position.0,
-            prompt_position.1 + 2 * prompt_line_spacing,
-            render_size,
-            None,
+        context.font.render_text(
+            renderer,
+            instruction_text,
+            (
+                prompt_position.0,
+                prompt_position.1 + 2 * prompt_line_spacing,
+            ),
         );
 
-        if !input_field.is_empty() {
-            let input_text_texture = renderer.create_text_texture(&context.font, input_field);
-            let (width, _) = R::get_texture_size(instruction_texture);
-            renderer.render_text_texture(
-                &input_text_texture,
-                prompt_position.0 + width * TEXT_SIZE_MULTIPLIER + 10,
-                prompt_position.1 + 2 * prompt_line_spacing,
-                render_size,
-                None,
+        if !input_text.is_empty() {
+            let (width, _) = context.font.text_size(instruction_text);
+            context.font.render_text(
+                renderer,
+                input_text,
+                (
+                    prompt_position.0 + width,
+                    prompt_position.1 + 2 * prompt_line_spacing,
+                ),
             );
         }
     }
@@ -702,7 +675,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                                     context,
                                     prompt_position,
                                     prompt_line_spacing,
-                                    &self.textures.new_level_x_size_text_texture,
+                                    "x-size (min. 16 blocks):",
                                     &self.new_level_size_x,
                                 );
                             }
@@ -712,13 +685,13 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                                     context,
                                     (prompt_position.0, prompt_position.1 + prompt_line_spacing),
                                     prompt_line_spacing,
-                                    &self.textures.new_level_y_size_text_texture,
+                                    "y-size (min. 12 blocks):",
                                     &self.new_level_size_y,
                                 );
                             }
                         }
                     }
-                    &self.textures.create_new_level_text_texture
+                    "create new level?"
                 }
                 PromptType::Save(save_level_state) => {
                     match save_level_state {
@@ -730,42 +703,27 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                                 context,
                                 prompt_position,
                                 prompt_line_spacing,
-                                &self.textures.filename_text_texture,
+                                "filename:",
                                 &level_save_name,
                             );
                         }
                     };
-                    &self.textures.save_level_text_texture
+                    "save level?"
                 }
-                PromptType::Quit => &self.textures.wanna_quit_text_texture,
+                PromptType::Quit => "really wanna quit?",
                 PromptType::CreateShadows(shadow_state) => match shadow_state {
-                    ShadowPromptType::Enabled => {
-                        &self
-                            .textures
-                            .create_shadows_enabled_instructions_text_texture
-                    }
-                    ShadowPromptType::Disabled => {
-                        &self
-                            .textures
-                            .create_shadows_disabled_instructions_text_texture
-                    }
+                    ShadowPromptType::Enabled => "disable auto shadow?",
+                    ShadowPromptType::Disabled => "enable auto shadow?",
                 },
                 PromptType::None => unreachable!(),
             };
-            let render_size = context.graphics.get_render_size();
-            renderer.render_text_texture(
-                prompt_texture,
-                prompt_position.0,
-                prompt_position.1,
-                render_size,
-                None,
-            );
-            renderer.render_text_texture(
-                &self.textures.press_y_text_texture,
-                prompt_position.0,
-                prompt_position.1 + prompt_line_spacing,
-                render_size,
-                None,
+            context
+                .font
+                .render_text(renderer, prompt_texture, prompt_position);
+            context.font.render_text(
+                renderer,
+                "press Y to confirm",
+                (prompt_position.0, prompt_position.1 + prompt_line_spacing),
             );
         }
     }

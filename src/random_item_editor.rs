@@ -1,18 +1,11 @@
 use crate::context_util::resize;
 use crate::event::{Event, Keycode};
 use crate::level::Level;
+use crate::level::ALL_CRATES;
 use crate::render::Renderer;
 use crate::types::*;
 use crate::util::{get_bottom_text_position, TITLE_POSITION};
 use crate::{Context, TextInput};
-
-fn load_text<'a, R: Renderer<'a>>(
-    renderer: &'a R,
-    context: &Context<'a, R>,
-    text: &str,
-) -> R::Texture {
-    renderer.create_text_texture(&context.font, text)
-}
 
 fn get_value(level: &Level, game_type: &GameType, index: usize) -> u32 {
     let crates = match game_type {
@@ -50,23 +43,13 @@ fn set_value(level: &mut Level, game_type: &GameType, index: usize, value: u32) 
 
 pub struct RandomItemEditorState<'a, R: Renderer<'a>> {
     renderer: &'a R,
-    normal_game_instruction_text: R::Texture,
-    deathmatch_instruction_text: R::Texture,
-    esc_instruction_text: R::Texture,
     selected: usize,
 }
 
 impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
-    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
-        let normal_game_instruction_text = load_text(renderer, context, "NORMAL GAME CRATES");
-        let deathmatch_instruction_text = load_text(renderer, context, "DEATHMATCH CRATES");
-        let esc_instruction_text = load_text(renderer, context, "press ESC to exit");
-
+    pub fn new(renderer: &'a R) -> Self {
         RandomItemEditorState {
             renderer,
-            normal_game_instruction_text,
-            deathmatch_instruction_text,
-            esc_instruction_text,
             selected: 0,
         }
     }
@@ -92,7 +75,7 @@ impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
             }
             Event::KeyDown { keycode, .. } => match keycode {
                 Keycode::Down => {
-                    if self.selected < context.textures.crates.len() - 1 {
+                    if self.selected < ALL_CRATES.len() - 1 {
                         self.selected += 1;
                     }
                 }
@@ -120,49 +103,34 @@ impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
 
     pub fn render(&mut self, context: &Context<'a, R>, game_type: GameType) {
         self.renderer.clear_screen();
-        let render_size = context.graphics.get_render_size();
 
-        self.renderer.render_text_texture_coordinates(
+        context.font.render_text(
+            self.renderer,
             match game_type {
-                GameType::Normal => &self.normal_game_instruction_text,
-                GameType::Deathmatch => &self.deathmatch_instruction_text,
+                GameType::Normal => "NORMAL GAME CRATES",
+                GameType::Deathmatch => "DEATHMATCH CRATES",
             },
             TITLE_POSITION,
-            render_size,
-            None,
         );
 
         let y = 50;
         let mut option_position = (40, y);
         let mut value_position = (280, option_position.1);
-        for x in 0..context.textures.crates.len() {
-            let option = &context.textures.crates[x];
+        for x in 0..ALL_CRATES.len() {
             if self.selected == x {
-                self.renderer.render_text_texture(
-                    &context.textures.selected_icon,
-                    option_position.0 - 20,
-                    option_position.1 + 3,
-                    render_size,
-                    None,
+                context.font.render_text(
+                    self.renderer,
+                    "*",
+                    (option_position.0 - 20, option_position.1 + 3),
                 );
             }
-            self.renderer.render_text_texture(
-                option,
-                option_position.0,
-                option_position.1,
-                render_size,
-                None,
-            );
-            let value_texture = self.renderer.create_text_texture(
-                &context.font,
+            context
+                .font
+                .render_text(self.renderer, ALL_CRATES[x], option_position);
+            context.font.render_text(
+                self.renderer,
                 &get_value(&context.level, &game_type, x).to_string(),
-            );
-            self.renderer.render_text_texture(
-                &value_texture,
-                value_position.0,
-                value_position.1,
-                render_size,
-                None,
+                value_position,
             );
             if x == 10 {
                 option_position.1 = y;
@@ -174,11 +142,10 @@ impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
                 value_position.1 = option_position.1;
             }
         }
-        self.renderer.render_text_texture_coordinates(
-            &self.esc_instruction_text,
+        context.font.render_text(
+            self.renderer,
+            "press ESC to exit",
             get_bottom_text_position(context.graphics.resolution_y),
-            render_size,
-            None,
         );
     }
 }

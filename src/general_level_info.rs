@@ -11,31 +11,19 @@ enum Value {
     Number(usize),
 }
 
-struct ConfigOption<'a, R: Renderer<'a>> {
-    texture: R::Texture,
+struct ConfigOption {
+    text: &'static str,
     value: Value,
 }
 
-fn load_text<'a, R: Renderer<'a>>(
-    renderer: &'a R,
-    context: &Context<'a, R>,
-    text: &str,
-) -> R::Texture {
-    renderer.create_text_texture(&context.font, text)
-}
-
-fn load_value_text<'a, R: Renderer<'a>>(
-    renderer: &'a R,
-    context: &Context<'a, R>,
-    value: &Value,
-) -> Option<R::Texture> {
+fn load_value_text<'a, R: Renderer<'a>>(context: &Context<'a, R>, value: &Value) -> Option<String> {
     let string = match value {
         Value::Number(number) => context.level.general_info.enemy_table[*number].to_string(),
         Value::TimeLimit => format!("{} seconds", context.level.general_info.time_limit),
         Value::Comment => context.level.general_info.comment.to_string(),
     };
     if !string.is_empty() {
-        Some(renderer.create_text_texture(&context.font, &string))
+        Some(string)
     } else {
         None
     }
@@ -51,61 +39,57 @@ fn sanitize_level_comment_input(new_text: &str, target_text: &mut String) {
 
 pub struct GeneralLevelInfoState<'a, R: Renderer<'a>> {
     renderer: &'a R,
-    esc_instruction_text: R::Texture,
-    options: [ConfigOption<'a, R>; 10],
+    options: [ConfigOption; 10],
     selected: usize,
 }
 
 impl<'a, R: Renderer<'a>> GeneralLevelInfoState<'a, R> {
-    pub fn new(renderer: &'a R, context: &Context<'a, R>) -> Self {
+    pub fn new(renderer: &'a R) -> Self {
         let options = [
             ConfigOption {
-                texture: load_text(renderer, context, "level comment:"),
+                text: "level comment:",
                 value: Value::Comment,
             },
             ConfigOption {
-                texture: load_text(renderer, context, "time limit:"),
+                text: "time limit:",
                 value: Value::TimeLimit,
             },
             ConfigOption {
-                texture: load_text(renderer, context, "pistol boys:"),
+                text: "pistol boys:",
                 value: Value::Number(0),
             },
             ConfigOption {
-                texture: load_text(renderer, context, "shotgun maniacs:"),
+                text: "shotgun maniacs:",
                 value: Value::Number(1),
             },
             ConfigOption {
-                texture: load_text(renderer, context, "uzi rebels:"),
+                text: "uzi rebels:",
                 value: Value::Number(2),
             },
             ConfigOption {
-                texture: load_text(renderer, context, "commandos:"),
+                text: "commandos:",
                 value: Value::Number(3),
             },
             ConfigOption {
-                texture: load_text(renderer, context, "granade mofos:"),
+                text: "granade mofos:",
                 value: Value::Number(4),
             },
             ConfigOption {
-                texture: load_text(renderer, context, "civilians:"),
+                text: "civilians:",
                 value: Value::Number(5),
             },
             ConfigOption {
-                texture: load_text(renderer, context, "punishers:"),
+                text: "punishers:",
                 value: Value::Number(6),
             },
             ConfigOption {
-                texture: load_text(renderer, context, "flamers:"),
+                text: "flamers:",
                 value: Value::Number(7),
             },
         ];
-        let esc_instruction_text = load_text(renderer, context, "press ESC to exit");
-
         GeneralLevelInfoState {
             renderer,
             options,
-            esc_instruction_text,
             selected: 0usize,
         }
     }
@@ -182,44 +166,32 @@ impl<'a, R: Renderer<'a>> GeneralLevelInfoState<'a, R> {
         self.renderer.clear_screen();
         let mut option_position = (40, 20);
         let mut value_position = (300, option_position.1);
-        let render_size = context.graphics.get_render_size();
         for x in 0..self.options.len() {
             let option = &self.options[x];
             if self.selected == x {
-                self.renderer.render_text_texture(
-                    &context.textures.selected_icon,
-                    option_position.0 - 20,
-                    option_position.1 + 3,
-                    render_size,
-                    None,
+                context.font.render_text(
+                    self.renderer,
+                    "*",
+                    (option_position.0 - 20, option_position.1 + 3),
                 );
             }
-            self.renderer.render_text_texture(
-                &option.texture,
-                option_position.0,
-                option_position.1,
-                render_size,
-                None,
-            );
-            let value_texture = &load_value_text(self.renderer, context, &option.value);
-            match value_texture {
-                Some(texture) => self.renderer.render_text_texture(
-                    texture,
-                    value_position.0,
-                    value_position.1,
-                    render_size,
-                    None,
-                ),
+            context
+                .font
+                .render_text(self.renderer, option.text, option_position);
+            let value_text = &load_value_text(context, &option.value);
+            match value_text {
+                Some(text) => context
+                    .font
+                    .render_text(self.renderer, text, value_position),
                 None => (),
             };
             option_position.1 += 20;
             value_position.1 = option_position.1;
         }
-        self.renderer.render_text_texture_coordinates(
-            &self.esc_instruction_text,
+        context.font.render_text(
+            self.renderer,
+            "press ESC to exit",
             get_bottom_text_position(context.graphics.resolution_y),
-            render_size,
-            None,
         );
     }
 
