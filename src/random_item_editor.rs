@@ -1,4 +1,3 @@
-use crate::context_util::resize;
 use crate::event::{Event, Keycode};
 use crate::level::Level;
 use crate::level::ALL_CRATES;
@@ -41,20 +40,16 @@ fn set_value(level: &mut Level, game_type: &GameType, index: usize, value: u32) 
     }
 }
 
-pub struct RandomItemEditorState<'a, R: Renderer<'a>> {
-    renderer: &'a R,
+pub struct RandomItemEditorState {
     selected: usize,
 }
 
-impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
-    pub fn new(renderer: &'a R) -> Self {
-        RandomItemEditorState {
-            renderer,
-            selected: 0,
-        }
+impl RandomItemEditorState {
+    pub fn new() -> Self {
+        RandomItemEditorState { selected: 0 }
     }
 
-    pub fn handle_event<T: TextInput>(
+    pub fn handle_event<'a, R: Renderer<'a>, T: TextInput>(
         &mut self,
         context: &mut Context<'a, R>,
         text_input: &T,
@@ -69,8 +64,7 @@ impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
                 text_input.stop();
                 return Mode::Editor;
             }
-            Event::Window { win_event } => {
-                resize(self.renderer, context, win_event);
+            Event::Window { .. } => {
                 return Mode::Editor;
             }
             Event::KeyDown { keycode, .. } => match keycode {
@@ -101,11 +95,16 @@ impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
         Mode::RandomItemEditor(game_type)
     }
 
-    pub fn render(&mut self, context: &Context<'a, R>, game_type: GameType) {
-        self.renderer.clear_screen();
+    pub fn render<'a, R: Renderer<'a>>(
+        &mut self,
+        renderer: &'a R,
+        context: &Context<'a, R>,
+        game_type: GameType,
+    ) {
+        renderer.clear_screen();
 
         context.font.render_text(
-            self.renderer,
+            renderer,
             match game_type {
                 GameType::Normal => "NORMAL GAME CRATES",
                 GameType::Deathmatch => "DEATHMATCH CRATES",
@@ -119,16 +118,16 @@ impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
         for x in 0..ALL_CRATES.len() {
             if self.selected == x {
                 context.font.render_text(
-                    self.renderer,
+                    renderer,
                     "*",
                     (option_position.0 - 20, option_position.1 + 3),
                 );
             }
             context
                 .font
-                .render_text(self.renderer, ALL_CRATES[x], option_position);
+                .render_text(renderer, ALL_CRATES[x], option_position);
             context.font.render_text(
-                self.renderer,
+                renderer,
                 &get_value(&context.level, &game_type, x).to_string(),
                 value_position,
             );
@@ -143,7 +142,7 @@ impl<'a, R: Renderer<'a>> RandomItemEditorState<'a, R> {
             }
         }
         context.font.render_text(
-            self.renderer,
+            renderer,
             "press ESC to exit",
             get_bottom_text_position(context.graphics.resolution_y),
         );

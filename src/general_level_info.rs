@@ -1,4 +1,3 @@
-use crate::context_util::resize;
 use crate::event::{Event, Keycode};
 use crate::render::Renderer;
 use crate::types::*;
@@ -37,14 +36,13 @@ fn sanitize_level_comment_input(new_text: &str, target_text: &mut String) {
     }
 }
 
-pub struct GeneralLevelInfoState<'a, R: Renderer<'a>> {
-    renderer: &'a R,
+pub struct GeneralLevelInfoState {
     options: [ConfigOption; 10],
     selected: usize,
 }
 
-impl<'a, R: Renderer<'a>> GeneralLevelInfoState<'a, R> {
-    pub fn new(renderer: &'a R) -> Self {
+impl GeneralLevelInfoState {
+    pub fn new() -> Self {
         let options = [
             ConfigOption {
                 text: "level comment:",
@@ -88,13 +86,12 @@ impl<'a, R: Renderer<'a>> GeneralLevelInfoState<'a, R> {
             },
         ];
         GeneralLevelInfoState {
-            renderer,
             options,
             selected: 0usize,
         }
     }
 
-    pub fn handle_event<T: TextInput>(
+    pub fn handle_event<'a, R: Renderer<'a>, T: TextInput>(
         &mut self,
         context: &mut Context<'a, R>,
         text_input: &T,
@@ -108,8 +105,7 @@ impl<'a, R: Renderer<'a>> GeneralLevelInfoState<'a, R> {
                 text_input.stop();
                 return Mode::Editor;
             }
-            Event::Window { win_event } => {
-                resize(self.renderer, context, win_event);
+            Event::Window { .. } => {
                 return Mode::Editor;
             }
             Event::TextInput { text, .. } => {
@@ -162,34 +158,32 @@ impl<'a, R: Renderer<'a>> GeneralLevelInfoState<'a, R> {
         Mode::GeneralLevelInfo
     }
 
-    pub fn render(&mut self, context: &Context<'a, R>) {
-        self.renderer.clear_screen();
+    pub fn render<'a, R: Renderer<'a>>(&mut self, renderer: &'a R, context: &Context<'a, R>) {
+        renderer.clear_screen();
         let mut option_position = (40, 20);
         let mut value_position = (300, option_position.1);
         for x in 0..self.options.len() {
             let option = &self.options[x];
             if self.selected == x {
                 context.font.render_text(
-                    self.renderer,
+                    renderer,
                     "*",
                     (option_position.0 - 20, option_position.1 + 3),
                 );
             }
             context
                 .font
-                .render_text(self.renderer, option.text, option_position);
+                .render_text(renderer, option.text, option_position);
             let value_text = &load_value_text(context, &option.value);
             match value_text {
-                Some(text) => context
-                    .font
-                    .render_text(self.renderer, text, value_position),
+                Some(text) => context.font.render_text(renderer, text, value_position),
                 None => (),
             };
             option_position.1 += 20;
             value_position.1 = option_position.1;
         }
         context.font.render_text(
-            self.renderer,
+            renderer,
             "press ESC to exit",
             get_bottom_text_position(context.graphics.resolution_y),
         );

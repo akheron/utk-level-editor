@@ -1,4 +1,3 @@
-use crate::context_util::resize;
 use crate::event::Event;
 use crate::render::Renderer;
 use crate::Context;
@@ -26,23 +25,20 @@ const LINES: [&str; 19] = [
     "+/- adjust rendering size",
 ];
 
-pub struct HelpState<'a, R: Renderer<'a>> {
-    renderer: &'a R,
-}
+pub struct HelpState;
 
-impl<'a, R: Renderer<'a>> HelpState<'a, R> {
-    pub fn new(renderer: &'a R) -> Self {
-        HelpState { renderer }
+impl HelpState {
+    pub fn new() -> Self {
+        HelpState
     }
 
-    pub fn handle_event(&mut self, context: &mut Context<'a, R>, event: Event) -> Mode {
+    pub fn handle_event(&self, event: Event) -> Mode {
         match event {
             Event::Quit => return Mode::Editor,
             Event::KeyDown { .. } => {
                 return Mode::Editor;
             }
-            Event::Window { win_event, .. } => {
-                resize(self.renderer, context, win_event);
+            Event::Window { .. } => {
                 return Mode::Editor;
             }
             _ => {}
@@ -50,13 +46,13 @@ impl<'a, R: Renderer<'a>> HelpState<'a, R> {
         Mode::Help
     }
 
-    pub fn render(&self, context: &Context<'a, R>) {
-        self.renderer.clear_screen();
+    pub fn render<'a, R: Renderer<'a>>(&self, renderer: &'a R, context: &Context<'a, R>) {
+        renderer.clear_screen();
         let mut position = 6;
         for line_text in &LINES {
             context
                 .font
-                .render_text(self.renderer, line_text, (10, position));
+                .render_text(renderer, line_text, (10, position));
             position += 22;
         }
     }

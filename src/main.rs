@@ -5,7 +5,7 @@ use std::io::Read;
 
 use crate::context::Context;
 use crate::context::Textures;
-use crate::context_util::get_textures;
+use crate::context_util::{get_textures, resize};
 use crate::editor::EditorState;
 use crate::event::{Event, Keycode, MouseButton, WindowEvent};
 use crate::fn2::FN2;
@@ -100,46 +100,49 @@ pub fn main() {
     };
     let text_input = SdlTextInput(video_subsystem.text_input());
 
-    let mut state = State::new(&renderer);
+    let mut state = State::new();
     loop {
         for sdl_event in event_pump.poll_iter() {
             if let Some(event) = convert_event(sdl_event) {
+                if let Event::Window { win_event } = event {
+                    resize(&renderer, &mut context, win_event);
+                }
                 match state.handle_event(&mut context, &text_input, event) {
                     RunState::Quit => return,
                     RunState::Run => {}
                 }
             }
         }
-        state.render(&context);
+        state.render(&renderer, &context);
         renderer.present();
         std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
 }
 
-struct State<'a, R: Renderer<'a>> {
+struct State {
     mode: Mode,
-    editor: EditorState<'a, R>,
-    tile_select: TileSelectState<'a, R>,
-    help: HelpState<'a, R>,
-    general_level_info: GeneralLevelInfoState<'a, R>,
-    random_item_editor: RandomItemEditorState<'a, R>,
-    load_level: LoadLevelState<'a, R>,
+    editor: EditorState,
+    tile_select: TileSelectState,
+    help: HelpState,
+    general_level_info: GeneralLevelInfoState,
+    random_item_editor: RandomItemEditorState,
+    load_level: LoadLevelState,
 }
 
-impl<'a, R: Renderer<'a>> State<'a, R> {
-    pub fn new(renderer: &'a R) -> Self {
+impl State {
+    pub fn new() -> Self {
         Self {
             mode: Mode::Editor,
-            editor: EditorState::new(renderer),
-            tile_select: TileSelectState::new(renderer),
-            help: HelpState::new(renderer),
-            general_level_info: GeneralLevelInfoState::new(renderer),
-            random_item_editor: RandomItemEditorState::new(renderer),
-            load_level: LoadLevelState::new(renderer),
+            editor: EditorState::new(),
+            tile_select: TileSelectState::new(),
+            help: HelpState::new(),
+            general_level_info: GeneralLevelInfoState::new(),
+            random_item_editor: RandomItemEditorState::new(),
+            load_level: LoadLevelState::new(),
         }
     }
 
-    pub fn handle_event<T: TextInput>(
+    pub fn handle_event<'a, R: Renderer<'a>, T: TextInput>(
         &mut self,
         context: &mut Context<'a, R>,
         text_input: &T,
@@ -148,7 +151,7 @@ impl<'a, R: Renderer<'a>> State<'a, R> {
         self.mode = match self.mode {
             Mode::Editor => self.editor.handle_event(context, text_input, event),
             Mode::TileSelect => self.tile_select.handle_event(context, event),
-            Mode::Help => self.help.handle_event(context, event),
+            Mode::Help => self.help.handle_event(event),
             Mode::GeneralLevelInfo => self
                 .general_level_info
                 .handle_event(context, text_input, event),
@@ -164,14 +167,16 @@ impl<'a, R: Renderer<'a>> State<'a, R> {
         }
     }
 
-    pub fn render(&mut self, context: &Context<'a, R>) {
+    pub fn render<'a, R: Renderer<'a>>(&mut self, renderer: &'a R, context: &Context<'a, R>) {
         match self.mode {
-            Mode::Editor => self.editor.render(context),
-            Mode::TileSelect => self.tile_select.render(context),
-            Mode::Help => self.help.render(context),
-            Mode::GeneralLevelInfo => self.general_level_info.render(context),
-            Mode::RandomItemEditor(game_type) => self.random_item_editor.render(context, game_type),
-            Mode::LoadLevel => self.load_level.render(context),
+            Mode::Editor => self.editor.render(renderer, context),
+            Mode::TileSelect => self.tile_select.render(renderer, context),
+            Mode::Help => self.help.render(renderer, context),
+            Mode::GeneralLevelInfo => self.general_level_info.render(renderer, context),
+            Mode::RandomItemEditor(game_type) => {
+                self.random_item_editor.render(renderer, context, game_type)
+            }
+            Mode::LoadLevel => self.load_level.render(renderer, context),
             Mode::Quit => {}
         };
     }

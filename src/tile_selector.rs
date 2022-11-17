@@ -1,27 +1,27 @@
-use crate::context_util::resize;
 use crate::event::{Event, Keycode, MouseButton};
 use crate::render::{get_texture_rect, get_texture_render_size, Renderer, RendererColor};
 use crate::types::*;
 use crate::util::*;
 use crate::Context;
 
-pub struct TileSelectState<'a, R: Renderer<'a>> {
-    renderer: &'a R,
-}
+pub struct TileSelectState;
 
-impl<'a, R: Renderer<'a>> TileSelectState<'a, R> {
-    pub fn new(renderer: &'a R) -> Self {
-        TileSelectState { renderer }
+impl TileSelectState {
+    pub fn new() -> Self {
+        TileSelectState
     }
 
-    pub fn handle_event(&self, context: &mut Context<'a, R>, event: Event) -> Mode {
+    pub fn handle_event<'a, R: Renderer<'a>>(
+        &self,
+        context: &mut Context<'a, R>,
+        event: Event,
+    ) -> Mode {
         match event {
             Event::Quit
             | Event::KeyDown {
                 keycode: Keycode::Escape,
             } => return Mode::Editor,
-            Event::Window { win_event } => {
-                resize(self.renderer, context, win_event);
+            Event::Window { .. } => {
                 return Mode::Editor;
             }
             Event::KeyDown { keycode } => match keycode {
@@ -89,8 +89,8 @@ impl<'a, R: Renderer<'a>> TileSelectState<'a, R> {
         Mode::TileSelect
     }
 
-    pub fn render(&self, context: &Context<'a, R>) {
-        self.renderer.clear_screen();
+    pub fn render<'a, R: Renderer<'a>>(&self, renderer: &'a R, context: &Context<'a, R>) {
+        renderer.clear_screen();
         let texture_selected = match context.texture_type_scrolled {
             TextureType::Floor => &context.textures.floor,
             TextureType::Walls => &context.textures.walls,
@@ -98,8 +98,7 @@ impl<'a, R: Renderer<'a>> TileSelectState<'a, R> {
         };
         let render_multiplier = context.graphics.render_multiplier;
         let dst = get_texture_rect::<R>(texture_selected, render_multiplier);
-        self.renderer
-            .fill_and_render_texture(RendererColor::LightGrey, texture_selected, dst);
+        renderer.fill_and_render_texture(RendererColor::LightGrey, texture_selected, dst);
         let (texture_width, texture_height) =
             get_texture_render_size::<R>(texture_selected, render_multiplier);
         let highlighted_id = get_tile_id_from_coordinates(
@@ -108,11 +107,7 @@ impl<'a, R: Renderer<'a>> TileSelectState<'a, R> {
             context.graphics.get_x_tiles_per_screen(),
             None,
         );
-        self.renderer.highlight_selected_tile(
-            &context.graphics,
-            highlighted_id,
-            &RendererColor::White,
-        );
+        renderer.highlight_selected_tile(&context.graphics, highlighted_id, &RendererColor::White);
         if context.texture_type_selected == context.texture_type_scrolled {
             let coordinates = get_tile_coordinates(
                 context.selected_tile_id,
@@ -129,7 +124,7 @@ impl<'a, R: Renderer<'a>> TileSelectState<'a, R> {
                 context.graphics.get_x_tiles_per_screen(),
                 None,
             );
-            self.renderer.highlight_selected_tile(
+            renderer.highlight_selected_tile(
                 &context.graphics,
                 screen_tile_id,
                 &RendererColor::Red,
@@ -141,7 +136,7 @@ impl<'a, R: Renderer<'a>> TileSelectState<'a, R> {
             TextureType::Shadow => "shadows (PAGEGUP/DOWN) - clear with RIGHT CLICK",
         };
         context.font.render_text(
-            self.renderer,
+            renderer,
             active_text,
             get_bottom_text_position(context.graphics.resolution_y),
         );

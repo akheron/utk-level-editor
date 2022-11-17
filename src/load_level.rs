@@ -1,6 +1,5 @@
 use std::fs;
 
-use crate::context_util::resize;
 use crate::event::{Event, Keycode};
 use crate::get_bottom_text_position;
 use crate::render::Renderer;
@@ -8,14 +7,13 @@ use crate::types::*;
 use crate::util::TITLE_POSITION;
 use crate::Context;
 
-pub struct LoadLevelState<'a, R: Renderer<'a>> {
-    renderer: &'a R,
+pub struct LoadLevelState {
     files: Vec<String>,
     selected: usize,
 }
 
-impl<'a, R: Renderer<'a>> LoadLevelState<'a, R> {
-    pub fn new(renderer: &'a R) -> Self {
+impl LoadLevelState {
+    pub fn new() -> Self {
         let files = fs::read_dir("./")
             .unwrap()
             .filter_map(|read_dir_result| {
@@ -27,21 +25,20 @@ impl<'a, R: Renderer<'a>> LoadLevelState<'a, R> {
                 }
             })
             .collect();
-        LoadLevelState {
-            renderer,
-            files,
-            selected: 0,
-        }
+        LoadLevelState { files, selected: 0 }
     }
 
-    pub fn handle_event(&mut self, context: &mut Context<'a, R>, event: Event) -> Mode {
+    pub fn handle_event<'a, R: Renderer<'a>>(
+        &mut self,
+        context: &mut Context<'a, R>,
+        event: Event,
+    ) -> Mode {
         match event {
             Event::Quit { .. }
             | Event::KeyDown {
                 keycode: Keycode::Escape,
             } => return Mode::Editor,
-            Event::Window { win_event, .. } => {
-                resize(self.renderer, context, win_event);
+            Event::Window { .. } => {
                 return Mode::Editor;
             }
             Event::KeyDown { keycode, .. } => match keycode {
@@ -78,17 +75,17 @@ impl<'a, R: Renderer<'a>> LoadLevelState<'a, R> {
         Mode::LoadLevel
     }
 
-    pub fn render(&mut self, context: &Context<'a, R>) {
-        self.renderer.clear_screen();
+    pub fn render<'a, R: Renderer<'a>>(&mut self, renderer: &'a R, context: &Context<'a, R>) {
+        renderer.clear_screen();
         let text_position = (40, 60);
         context
             .font
-            .render_text(self.renderer, "LOAD LEVEL:", TITLE_POSITION);
+            .render_text(renderer, "LOAD LEVEL:", TITLE_POSITION);
         let line_spacing = 20;
         for x in 0..self.files.len() {
             if self.selected == x {
                 context.font.render_text(
-                    self.renderer,
+                    renderer,
                     "*",
                     (
                         text_position.0 - 20,
@@ -97,13 +94,13 @@ impl<'a, R: Renderer<'a>> LoadLevelState<'a, R> {
                 );
             }
             context.font.render_text(
-                self.renderer,
+                renderer,
                 &self.files[x],
                 (text_position.0, text_position.1 + line_spacing * x as u32),
             );
         }
         context.font.render_text(
-            self.renderer,
+            renderer,
             "ENTER to select or ESC to exit",
             get_bottom_text_position(context.graphics.resolution_y),
         );

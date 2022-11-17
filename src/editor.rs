@@ -1,4 +1,3 @@
-use crate::context_util::resize;
 use crate::event::{Event, Keycode, MouseButton};
 use crate::level::Steam;
 use crate::level::{crates, StaticCrateType};
@@ -57,8 +56,7 @@ enum InsertType {
     DMCrate(InsertState),
 }
 
-pub struct EditorState<'a, R: Renderer<'a>> {
-    renderer: &'a R,
+pub struct EditorState {
     set_position: u8,
     mouse_left_click: Option<(u32, u32)>,
     mouse_right_click: bool,
@@ -71,10 +69,9 @@ pub struct EditorState<'a, R: Renderer<'a>> {
 
 static DEFAULT_LEVEL_SIZE: (u32, u32) = (16, 12);
 
-impl<'a, R: Renderer<'a>> EditorState<'a, R> {
-    pub fn new(renderer: &'a R) -> Self {
+impl EditorState {
+    pub fn new() -> Self {
         EditorState {
-            renderer,
             set_position: 0,
             mouse_left_click: None,
             mouse_right_click: false,
@@ -86,7 +83,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
         }
     }
 
-    pub fn handle_event<T: TextInput>(
+    pub fn handle_event<'a, R: Renderer<'a>, T: TextInput>(
         &mut self,
         context: &mut Context<'a, R>,
         text_input: &T,
@@ -124,9 +121,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                 }
                 _ => {}
             },
-            Event::Window { win_event } => {
-                resize(self.renderer, context, win_event);
-            }
+            Event::Window { .. } => {}
             Event::KeyDown { keycode, .. } => match keycode {
                 Keycode::Space => {
                     return Mode::TileSelect;
@@ -526,8 +521,8 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
         Mode::Editor
     }
 
-    pub fn render(&mut self, context: &Context<'a, R>) {
-        self.renderer.render_level(
+    pub fn render<'a, R: Renderer<'a>>(&mut self, renderer: &'a R, context: &Context<'a, R>) {
+        renderer.render_level(
             &context.graphics,
             &context.level,
             &context.textures,
@@ -545,14 +540,10 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
             context.graphics.get_x_tiles_per_screen(),
             None,
         );
-        self.renderer.highlight_selected_tile(
-            &context.graphics,
-            highlighted_id,
-            &RendererColor::White,
-        );
+        renderer.highlight_selected_tile(&context.graphics, highlighted_id, &RendererColor::White);
         let render_size = context.graphics.get_render_size();
         context.font.render_text_relative(
-            self.renderer,
+            renderer,
             "PL1",
             context.level.origo(render_size),
             (
@@ -561,7 +552,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
             ),
         );
         context.font.render_text_relative(
-            self.renderer,
+            renderer,
             "PL2",
             context.level.origo(render_size),
             (
@@ -596,8 +587,8 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                 _ => "F1 for help",
             }
         };
-        context.font.render_text(self.renderer, text, (8, 8));
-        self.render_prompt_if_needed(self.renderer, context);
+        context.font.render_text(renderer, text, (8, 8));
+        self.render_prompt_if_needed(renderer, context);
         if self.insert_item == InsertType::None {
             if let Some(coordinates) = self.mouse_left_click {
                 let selected_screen_tiles = get_selected_level_tiles(
@@ -613,7 +604,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
                     None,
                 );
                 for screen_tile_id in selected_screen_tiles {
-                    self.renderer.highlight_selected_tile(
+                    renderer.highlight_selected_tile(
                         &context.graphics,
                         screen_tile_id,
                         &RendererColor::White,
@@ -623,11 +614,11 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
         }
         if let Some(text) = &context.saved_level_name {
             let (x, y) = get_bottom_text_position(context.graphics.resolution_y);
-            context.font.render_text(self.renderer, text, (x, y));
+            context.font.render_text(renderer, text, (x, y));
         }
     }
 
-    fn render_input_prompt(
+    fn render_input_prompt<'a, R: Renderer<'a>>(
         &self,
         renderer: &'a R,
         context: &Context<'a, R>,
@@ -658,7 +649,11 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
         }
     }
 
-    fn render_prompt_if_needed(&self, renderer: &'a R, context: &Context<'a, R>) {
+    fn render_prompt_if_needed<'a, R: Renderer<'a>>(
+        &self,
+        renderer: &'a R,
+        context: &Context<'a, R>,
+    ) {
         if self.prompt != PromptType::None {
             let prompt_position = (context.graphics.resolution_x / 2 - 100, 200);
             let prompt_line_spacing = 30;
@@ -728,7 +723,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
         }
     }
 
-    fn handle_mouse_left_down(&mut self, context: &mut Context<'a, R>) {
+    fn handle_mouse_left_down<'a, R: Renderer<'a>>(&mut self, context: &mut Context<'a, R>) {
         if self.drag_tiles {
             return;
         }
@@ -815,7 +810,7 @@ impl<'a, R: Renderer<'a>> EditorState<'a, R> {
         }
     }
 
-    fn handle_mouse_right_down(&self, context: &mut Context<'a, R>) {
+    fn handle_mouse_right_down<'a, R: Renderer<'a>>(&self, context: &mut Context<'a, R>) {
         let pointed_tile = get_tile_id_from_coordinates(
             &context.graphics,
             &limit_coordinates(
